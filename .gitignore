@@ -10,6 +10,7 @@
 #
 # Normal rules (sorted alphabetically)
 #
+.*
 *.a
 *.asn1.[ch]
 *.bin
@@ -51,6 +52,7 @@
 *.xz
 *.zst
 Module.symvers
+dtbs-list
 modules.order
 
 #
@@ -76,6 +78,7 @@ modules.order
 # RPM spec file (make rpm-pkg)
 #
 /*.spec
+/rpmbuild/
 
 #
 # Debian directory (make deb-pkg)
@@ -93,13 +96,23 @@ modules.order
 /tar-install/
 
 #
+# pacman files (make pacman-pkg)
+#
+/PKGBUILD
+/pacman/
+
+
+#
 # We don't want to ignore the following even if they are dot-files
 #
 !.clang-format
+!.clippy.toml
 !.cocciconfig
+!.editorconfig
 !.get_maintainer.ignore
 !.gitattributes
 !.gitignore
+!.kunitconfig
 !.mailmap
 !.rustfmt.toml
 
@@ -120,6 +133,7 @@ series
 
 # ctags files
 tags
+!tags/
 TAGS
 
 # cscope files
