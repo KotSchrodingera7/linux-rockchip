@@ -93,6 +93,49 @@
 		vin-supply = <&vcc5v0_sys>;
 	};
 
+	vcc5v0_usb2_host: vcc5v0-usb2-host-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb2_host";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_usb2_host_en>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc5v0_usb3_host1: vcc5v0-usb3-host1-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb3_host1";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio4 RK_PB6 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_usb3_host1_en>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vcc5v0_usb3_host2: vcc5v0-usb3-host2-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb3_host2";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vcc5v0_usb3_host2_en>;
+		vin-supply = <&vcc5v0_sys>;
+	};
+
+
 	hdmi0_sound: hdmi0-sound {
 		status = "okay";
 		compatible = "rockchip,hdmi";
@@ -203,6 +246,10 @@
 
 &combphy1_ps {
 	/* pcie2x1l0 (PCIE20_1) */
+	status = "okay";
+};
+
+&combphy2_psu {
 	status = "okay";
 };
 
@@ -671,6 +718,71 @@
 	};
 };
 
+&u2phy1 {
+	status = "okay";
+};
+
+&u2phy1_otg {
+	status = "okay";
+};
+
+&u2phy2 {
+	status = "okay";
+};
+
+&u2phy2_host {
+	status = "okay";
+};
+
+/* USB2.0 HOST*/
+&u2phy3 {
+	status = "okay";
+};
+
+&u2phy3_host {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host1_ehci {
+	status = "okay";
+};
+
+&usb_host1_ohci {
+	status = "okay";
+};
+
+&usbhost3_0 {
+	status = "okay";
+};
+
+&usbhost_dwc3_0 {
+	status = "okay";
+};
+
+&usbdp_phy1 {
+	status = "okay";
+};
+
+&usbdp_phy1_u3 {
+	status = "okay";
+};
+
+&usbdrd3_1{
+	status = "okay";
+};
+
+&usbdrd_dwc3_1{
+	status = "okay";
+};
+
 &vepu {
 	status = "okay";
 };
@@ -782,8 +894,16 @@
 	};
 
 	usb {
-		vcc5v0_host_en: vcc5v0-host-en {
+		vcc5v0_usb2_host_en: vcc5v0-usb2-host-en {
 			rockchip,pins = <4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_usb3_host1_en: vcc5v0-usb3-host1-en {
+			rockchip,pins = <4 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+
+		vcc5v0_usb3_host2_en: vcc5v0-usb3-host2-en {
+			rockchip,pins = <1 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 
 		vcc5v0_otg_en: vcc5v0-otg-en {
