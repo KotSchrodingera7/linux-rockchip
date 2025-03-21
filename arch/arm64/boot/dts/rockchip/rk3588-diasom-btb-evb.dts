@@ -241,7 +241,7 @@
 		pwms = <&pwm13 0 1000 0>;
 		brightness-levels = <0 255>;
 		num-interpolated-steps = <256>;
-		default-brightness-level = <255>;
+		default-brightness-level = <100>;
 	};
 
 	fan0: pwm-fan {
@@ -423,23 +423,6 @@
 	pinctrl-0 = <&hdmim0_tx0_hpd>;
     cec-enable = "false";
 
-	// force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
-	// force-output;
-	// force_timing{
-	// 	clock-frequency = <20000000>;
-	// 		hactive = <1920>;
-	// 		vactive = <720>;
-	// 		hfront-porch = <56>;
-	// 		hsync-len = <12>;
-	// 		hback-porch = <16>;
-	// 		vfront-porch = <16>;
-	// 		vsync-len = <3>;
-	// 		vback-porch = <24>;
-	// 		hsync-active = <0>;
-	// 		vsync-active = <0>;
-	// 		de-active = <0>;
-	// 		pixelclk-active = <0>;
-	// };
 };
 
 &hdmi0_in_vp0 {
@@ -745,7 +728,6 @@
 		reg = <0x51>;
 		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
-		// plugin-det-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_LOW>;
 
 		panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
 		panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
@@ -766,7 +748,7 @@
 
 		display-timings {
 			src-timing {
-				clock-frequency = <85000000>;
+				clock-frequency = <47060000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -782,7 +764,7 @@
 			};
 
 			dst-timing {
-				clock-frequency = <85000000>;
+				clock-frequency = <47060000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -911,7 +893,7 @@
 	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
 	force-output;
 	force_timing{
-		clock-frequency = <20000000>;
+		clock-frequency = <47060000>;
 		hactive = <1920>;
 		vactive = <720>;
 		hfront-porch = <56>;
@@ -925,6 +907,10 @@
 		de-active = <0>;
 		pixelclk-active = <0>;
 	};
+};
+
+&route_hdmi1 {
+	status = "disabled";
 };
 
 &rkcif {
