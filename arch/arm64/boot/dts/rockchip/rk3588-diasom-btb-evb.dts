@@ -337,26 +337,6 @@
 &display_subsystem {
 	clocks = <&hdptxphy_hdmi0>, <&hdptxphy_hdmi1>;
 	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
-
-	route {
-		route_hdmi0: route-hdmi0 {
-			// status = "disabled";
-			// logo,uboot = "logo.bmp";
-			// logo,kernel = "logo_kernel.bmp";
-			// logo,mode = "center";
-			// charge_logo,mode = "center";
-			connect = <&vp0_out_hdmi0>;
-		};
-
-		route_hdmi1: route-hdmi1 {
-			status = "disabled";
-			logo,uboot = "logo.bmp";
-			logo,kernel = "logo_kernel.bmp";
-			logo,mode = "center";
-			charge_logo,mode = "center";
-			connect = <&vp1_out_hdmi1>;
-		};
-	};
 };
 
 &dmc {
@@ -421,7 +401,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim0_tx0_hpd>;
-    cec-enable = "false";
+    // cec-enable = "true";
 
 };
 
@@ -748,7 +728,7 @@
 
 		display-timings {
 			src-timing {
-				clock-frequency = <47060000>;
+				clock-frequency = <112000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -759,12 +739,12 @@
 				vback-porch = <24>;
 				hsync-active = <0>;
 				vsync-active = <0>;
-				de-active = <0>;
+				de-active = <1>;
 				pixelclk-active = <0>;
 			};
 
 			dst-timing {
-				clock-frequency = <47060000>;
+				clock-frequency = <112000000>;
 				hactive = <1920>;
 				vactive = <720>;
 				hfront-porch = <56>;
@@ -775,7 +755,7 @@
 				vback-porch = <24>;
 				hsync-active = <0>;
 				vsync-active = <0>;
-				de-active = <0>;
+				de-active = <1>;
 				pixelclk-active = <0>;
 			};
 	    };
@@ -889,28 +869,10 @@
 &route_hdmi0 {
 	status = "disabled";
 
-	bridge = <&brg>;
-	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
-	force-output;
-	force_timing{
-		clock-frequency = <47060000>;
-		hactive = <1920>;
-		vactive = <720>;
-		hfront-porch = <56>;
-		hsync-len = <12>;
-		hback-porch = <16>;
-		vfront-porch = <16>;
-		vsync-len = <3>;
-		vback-porch = <24>;
-		hsync-active = <0>;
-		vsync-active = <0>;
-		de-active = <0>;
-		pixelclk-active = <0>;
-	};
 };
 
 &route_hdmi1 {
-	status = "disabled";
+	status = "okay";
 };
 
 &rkcif {
