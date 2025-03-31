@@ -656,14 +656,14 @@ static int rk628d_hdmirx_phy_power_on(struct rk628 *rk628, int f)
 		ret = rk628_combrxphy_power_on(rk628, f);
 		if (ret) {
 			rxphy_pwron = false;
-			dev_info(rk628->dev, "hdmi rxphy power on failed\n");
+			dev_dbg(rk628->dev, "hdmi rxphy power on failed\n");
 		} else {
 			rxphy_pwron = true;
 			dev_info(rk628->dev, "hdmi rxphy power on success\n");
 		}
 	}
 
-	dev_info(rk628->dev, "%s:rxphy_pwron=%d\n", __func__, rxphy_pwron);
+	dev_dbg(rk628->dev, "%s:rxphy_pwron=%d\n", __func__, rxphy_pwron);
 	return ret;
 }
 
@@ -931,10 +931,10 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 			rk628_i2c_read(rk628, HDMI_RX_SCDC_REGS1, &val);
 			status = val;
 
-			dev_info(rk628->dev,
+			dev_dbg(rk628->dev,
 				 "tmdsclk_cnt:%d, modetclk_cnt_hs:%d, modetclk_cnt_vs:%d,vs:%d\n",
 				 tmdsclk_cnt, modetclk_cnt_hs, modetclk_cnt_vs, vs);
-			dev_info(rk628->dev,
+			dev_dbg(rk628->dev,
 				 "read wxh:%dx%d, total:%dx%d, SCDC_REGS1:%#x, cnt:%d\n",
 				 width, height, frame_width,
 				 frame_height, status, cnt);
@@ -949,7 +949,7 @@ static int rk628_hdmirx_phy_setup(struct rk628 *rk628)
 
 		if (((status & 0xfff) != 0xf00) || (((status >> 16) > 0xc000) &&
 		    rk628->version != RK628D_VERSION)) {
-			dev_info(rk628->dev, "%s hdmi rxphy lock failed, retry:%d, status:0x%x\n",
+			dev_dbg(rk628->dev, "%s hdmi rxphy lock failed, retry:%d, status:0x%x\n",
 				 __func__, i, status);
 			if (((status >> 16) > 0xc000))
 				dev_info(rk628->dev, "((status >> 16) > 0xc000)\n");

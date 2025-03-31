@@ -595,7 +595,7 @@ static void rk628_display_work(struct work_struct *work)
 
 	if (rk628_input_is_hdmi(rk628)) {
 		ret = rk628_hdmirx_detect(rk628);
-		dev_info(rk628->dev, "%s: hdmirx detect status:0x%x\n", __func__, ret);
+		dev_dbg(rk628->dev, "%s: hdmirx detect status:0x%x\n", __func__, ret);
 		if (!(ret & (HDMIRX_CHANGED | HDMIRX_NOLOCK))) {
 			if (!rk628->plugin_det_gpio)
 				queue_delayed_work(rk628->monitor_wq,

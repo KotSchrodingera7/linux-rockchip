@@ -389,13 +389,13 @@ static int rk628_combrxphy_set_hdmi_mode_for_cable(struct rk628 *rk628, int f)
 		mdelay(1);
 	}
 	rk628_i2c_read(rk628, COMBRX_REG(0x6654), &val);
-	dev_info(rk628->dev, "clk det over cnt:%d, reg_0x6654:%#x\n", i, val);
+	dev_dbg(rk628->dev, "clk det over cnt:%d, reg_0x6654:%#x\n", i, val);
 	state = (val >> 28) & 0xf;
 	if (state == 5) {
-		dev_info(rk628->dev, "Clock detection anomaly\n");
+		dev_dbg(rk628->dev, "Clock detection anomaly\n");
 	} else if (state == 4) {
 		channel_st = (val >> 21) & 0x7f;
-		dev_info(rk628->dev, "%s%s%s%s%s%s%s%s level detection anomaly\n",
+		dev_dbg(rk628->dev, "%s%s%s%s%s%s%s%s level detection anomaly\n",
 			 channel_st & 0x40 ? "|clk_p|" : "",
 			 channel_st & 0x20 ? "|clk_n|" : "",
 			 channel_st & 0x10 ? "|d0_p|" : "",
@@ -412,7 +412,7 @@ static int rk628_combrxphy_set_hdmi_mode_for_cable(struct rk628 *rk628, int f)
 	    ((val & 0x007f0000) == 0) ||
 	    ((val & 0x00007f00) == 0) ||
 	    ((val & 0x0000007f) == 0)) {
-		dev_info(rk628->dev, "clock detected failed, cfg resistance manual!\n");
+		dev_dbg(rk628->dev, "clock detected failed, cfg resistance manual!\n");
 		rk628_i2c_write(rk628, COMBRX_REG(0x6620), 0x66666666);
 		rk628_i2c_update_bits(rk628, COMBRX_REG(0x6604), BIT(31), BIT(31));
 		mdelay(1);
@@ -443,7 +443,7 @@ static int rk628_combrxphy_set_hdmi_mode_for_cable(struct rk628 *rk628, int f)
 	if (j == CLK_STABLE_LOOP_CNT) {
 		rk628_i2c_read(rk628, COMBRX_REG(0x6630), &val_a);
 		rk628_i2c_read(rk628, COMBRX_REG(0x6608), &val_b);
-		dev_err(rk628->dev,
+		dev_dbg(rk628->dev,
 			"clk not stable, reg_0x6630:%#x, reg_0x6608:%#x",
 			val_a, val_b);
 		/* bypass level detection anomaly */
@@ -457,7 +457,7 @@ static int rk628_combrxphy_set_hdmi_mode_for_cable(struct rk628 *rk628, int f)
 	if ((val & 0x1f0000) == 0x1f0000) {
 		rk628_i2c_read(rk628, COMBRX_REG(0x6630), &val_a);
 		rk628_i2c_read(rk628, COMBRX_REG(0x6608), &val_b);
-		dev_err(rk628->dev,
+		dev_dbg(rk628->dev,
 			"clock error: 0x1f, reg_0x6630:%#x, reg_0x6608:%#x",
 			val_a, val_b);
 
