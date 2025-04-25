@@ -32,10 +32,13 @@
 		i2c10 = &i2c10;
 		i2c11 = &i2c11;
 		i2c12 = &i2c12;
+		mmc0 = &sdhci;
 		mmc1 = &sdmmc;
 	};
 
-	/delete-node/ chosen;
+	// chosen {
+	// 	stdout-path = "serial2:1500000n8";
+	// };
 
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
@@ -44,6 +47,16 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
+	};
+
+	vcc5v0_sys: vcc5v0-sys {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_sys";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vcc12v_dcin>;
 	};
 
 	vcc_1v1_nldo_s3: vcc-1v1-nldo-s3 {
@@ -73,16 +86,6 @@
 		regulator-boot-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		vin-supply = <&vcc12v_dcin>;
-	};
-
-	vcc5v0_sys: vcc5v0-sys {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
 		vin-supply = <&vcc12v_dcin>;
 	};
 		
@@ -222,6 +225,120 @@
         clock-frequency = <24000000>;
     };
 
+	cluster0_opp_table_m: opp-table-cluster0 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1008000000 {
+			opp-hz = /bits/ 64 <1008000000>;
+			opp-microvolt = <675000 675000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <712500 712500 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <762500 762500 950000>;
+			clock-latency-ns = <40000>;
+			opp-suspend;
+		};
+		opp-1608000000 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <850000 850000 950000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1800000000 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <950000 950000 950000>;
+			clock-latency-ns = <40000>;
+		};
+	};
+
+	cluster1_opp_table_m: opp-table-cluster1 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <675000 675000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <725000 725000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1608000000 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <762500 762500 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1800000000 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <850000 850000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-2016000000 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <925000 925000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-2208000000 {
+			opp-hz = /bits/ 64 <2208000000>;
+			opp-microvolt = <987500 987500 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-2400000000 {
+			opp-hz = /bits/ 64 <2400000000>;
+			opp-microvolt = <1000000 1000000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+	};
+
+	cluster2_opp_table_m: opp-table-cluster2 {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-1200000000 {
+			opp-hz = /bits/ 64 <1200000000>;
+			opp-microvolt = <675000 675000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1416000000 {
+			opp-hz = /bits/ 64 <1416000000>;
+			opp-microvolt = <725000 725000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1608000000 {
+			opp-hz = /bits/ 64 <1608000000>;
+			opp-microvolt = <762500 762500 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-1800000000 {
+			opp-hz = /bits/ 64 <1800000000>;
+			opp-microvolt = <850000 850000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-2016000000 {
+			opp-hz = /bits/ 64 <2016000000>;
+			opp-microvolt = <925000 925000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-2208000000 {
+			opp-hz = /bits/ 64 <2208000000>;
+			opp-microvolt = <987500 987500 1000000>;
+			clock-latency-ns = <40000>;
+		};
+		opp-2400000000 {
+			opp-hz = /bits/ 64 <2400000000>;
+			opp-microvolt = <1000000 1000000 1000000>;
+			clock-latency-ns = <40000>;
+		};
+	};
+
 	gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -294,42 +411,50 @@
 
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0_s0>;
-	mem-supply = <&vdd_cpu_big0_mem_s0>;
+	// mem-supply = <&vdd_cpu_big0_s0>;
+	operating-points-v2 = <&cluster1_opp_table_m>;
 };
 
 &cpu_b1 {
 	cpu-supply = <&vdd_cpu_big0_s0>;
-	mem-supply = <&vdd_cpu_big0_mem_s0>;
+	// mem-supply = <&vdd_cpu_big0_s0>;
+	operating-points-v2 = <&cluster1_opp_table_m>;
 };
 
 &cpu_b2 {
 	cpu-supply = <&vdd_cpu_big1_s0>;
-	mem-supply = <&vdd_cpu_big1_mem_s0>;
+	// mem-supply = <&vdd_cpu_big1_s0>;
+	operating-points-v2 = <&cluster2_opp_table_m>;
 };
 
 &cpu_b3 {
 	cpu-supply = <&vdd_cpu_big1_s0>;
-	mem-supply = <&vdd_cpu_big1_mem_s0>;
+	// mem-supply = <&vdd_cpu_big1_s0>;
+	operating-points-v2 = <&cluster2_opp_table_m>;
 };
 
 &cpu_l0 {
 	cpu-supply = <&vdd_cpu_lit_s0>;
-	mem-supply = <&vdd_cpu_lit_mem_s0>;
+	// mem-supply = <&vdd_cpu_lit_s0>;
+	operating-points-v2 = <&cluster0_opp_table_m>;
 };
 
 &cpu_l1 {
 	cpu-supply = <&vdd_cpu_lit_s0>;
-	mem-supply = <&vdd_cpu_lit_mem_s0>;
+	// mem-supply = <&vdd_cpu_lit_s0>;
+	operating-points-v2 = <&cluster0_opp_table_m>;
 };
 
 &cpu_l2 {
 	cpu-supply = <&vdd_cpu_lit_s0>;
-	mem-supply = <&vdd_cpu_lit_mem_s0>;
+	// mem-supply = <&vdd_cpu_lit_s0>;
+	operating-points-v2 = <&cluster0_opp_table_m>;
 };
 
 &cpu_l3 {
 	cpu-supply = <&vdd_cpu_lit_s0>;
-	mem-supply = <&vdd_cpu_lit_mem_s0>;
+	// mem-supply = <&vdd_cpu_lit_s0>;
+	operating-points-v2 = <&cluster0_opp_table_m>;
 };
 
 &combphy0_ps {
@@ -423,11 +548,11 @@
 	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
 };
 
-// &dmc {
-// 	center-supply = <&vdd_ddr_s0>;
-// 	mem-supply = <&vdd_log_s0>;
-// 	status = "okay";
-// };
+&dmc {
+	center-supply = <&vdd_ddr_s0>;
+	mem-supply = <&vdd_log_s0>;
+	status = "okay";
+};
 
 &dfi {
 	status = "okay";
@@ -879,9 +1004,62 @@
 	};
 };
 
+&iep {
+	status = "okay";
+};
+
+&iep_mmu {
+	status = "okay";
+};
+
 &isp0_mmu {
 	status = "okay";
 };
+
+&jpegd {
+	status = "okay";
+};
+
+&jpegd_mmu {
+	status = "okay";
+};
+
+&jpege_ccu {
+	status = "okay";
+};
+
+&jpege0 {
+	status = "okay";
+};
+
+&jpege0_mmu {
+	status = "okay";
+};
+
+&jpege1 {
+	status = "okay";
+};
+
+&jpege1_mmu {
+	status = "okay";
+};
+
+&jpege2 {
+	status = "okay";
+};
+
+&jpege2_mmu {
+	status = "okay";
+};
+
+&jpege3 {
+	status = "okay";
+};
+
+&jpege3_mmu {
+	status = "okay";
+};
+
 &mdio0 {
 	rgmii_phy0: phy@0 {
 		compatible = "ethernet-phy-id001c.c916",
@@ -960,6 +1138,10 @@
 	};
 };
 
+&mpp_srv {
+	status = "okay";
+};
+
 &pcie2x1l2 {
 	/* PCIE20_0 */
 	// pinctrl-names = "default";
@@ -1019,6 +1201,46 @@
 };
 
 &rga3_1_mmu {
+	status = "okay";
+};
+
+&rkvdec_ccu {
+	status = "okay";
+};
+
+&rkvdec0 {
+	status = "okay";
+};
+
+&rkvdec0_mmu {
+	status = "okay";
+};
+
+&rkvdec1 {
+	status = "okay";
+};
+
+&rkvdec1_mmu {
+	status = "okay";
+};
+
+&rkvenc_ccu {
+	status = "okay";
+};
+
+&rkvenc0 {
+	status = "okay";
+};
+
+&rkvenc0_mmu {
+	status = "okay";
+};
+
+&rkvenc1 {
+	status = "okay";
+};
+
+&rkvenc1_mmu {
 	status = "okay";
 };
 
@@ -1158,92 +1380,12 @@
 };
 
 &soc_thermal {
-	polling-delay = <1000>;
-	polling-delay-passive = <2000>;
-	trips {
-		trip0: trip-point@0 {
-			temperature = <45000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip1: trip-point@1 {
-			temperature = <50000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip2: trip-point@2 {
-			temperature = <55000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip3: trip-point@3 {
-			temperature = <60000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip4: trip-point@4 {
-			temperature = <65000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip5: trip-point@5 {
-			temperature = <70000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		trip6: trip-point@6 {
-			temperature = <75000>;
-			hysteresis = <5000>;
-			type = "active";
-		};
-		pcritical: trip-point@7 {
-			temperature = <80000>;
-			hysteresis = <1000>;
-			type = "active";
-		};
-	};
-	cooling-maps {
-		map0 {
-			trip = <&trip0>;
-			cooling-device = <&fan0 0 1>;
-			contribution = <1024>;
-		};
-		map1 {
-			trip = <&trip1>;
-			cooling-device = <&fan0 1 2>;
-			contribution = <1024>;
-		};
-		map2 {
-			trip = <&trip2>;
-			cooling-device = <&fan0 2 3>;
-			contribution = <1024>;
-		};
-		map3 {
-			trip = <&trip3>;
-			cooling-device = <&fan0 3 4>;
-			contribution = <1024>;
-		};
-		map4 {
-			trip = <&trip4>;
-			cooling-device = <&fan0 4 5>;
-			contribution = <1024>;
-		};
-		map5 {
-			trip = <&trip5>;
-			cooling-device = <&fan0 5 6>;
-			contribution = <1024>;
-		};
-		map6 {
-			trip = <&trip6>;
-			cooling-device = <&fan0 6 7>;
-			contribution = <1024>;
-		};
-		map7 {
-			trip = <&pcritical>;
-			cooling-device = <&fan0 7 8>;
-			contribution = <1024>;
-		};
-	};
+	status = "okay";
+};
+
+
+&tsadc {
+	status = "okay";
 };
 
 &u2phy0 {
@@ -1365,6 +1507,14 @@
 };
 
 &usbdrd_dwc3_1{
+	status = "okay";
+};
+
+&vdpu {
+	status = "okay";
+};
+
+&vdpu_mmu {
 	status = "okay";
 };
 
