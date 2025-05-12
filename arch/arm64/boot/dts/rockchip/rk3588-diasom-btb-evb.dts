@@ -147,8 +147,6 @@
 	vcc5v0_usb3_otg: vcc5v0-usb3-otg-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb3_otg";
-		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
@@ -558,6 +556,14 @@
 	status = "okay";
 };
 
+&dp0 {
+	status = "okay";
+};
+
+&dp0_in_vp2 {
+	status = "okay";
+};
+
 &gmac0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&gmac0_miim &gmac0_tx_bus2 &gmac0_rx_bus2
@@ -867,38 +873,45 @@
 				int-n-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_LOW>;
 				vbus-supply = <&vcc5v0_usb3_otg>;
 				status = "okay";
-
 				ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
-
 					port@0 {
 						reg = <0>;
-						usbc0_role_sw: endpoint@0 {
+						usbc0_role_sw: endpoint {
 							remote-endpoint = <&dwc3_0_role_switch>;
 						};
 					};
 				};
 
-				connector {
-					compatible = "usb-c-connector";
+				usb_con: connector {
+					ccompatible = "usb-c-connector";
 					label = "USB-C";
 					data-role = "dual";
+					power-role = "source";
+					try-power-role = "sink";
 					op-sink-microwatt = <1000000>;
-					power-role = "dual";
 					sink-pdos =
-						<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
+					<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
 					source-pdos =
-						<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-					try-power-role = "source";
+					<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+
+					altmodes {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						altmode@0 {
+							reg = <0>;
+							svid = <0xff01>;
+							vdo = <0xffffffff>;
+						};
+					};
 
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
-
 						port@0 {
 							reg = <0>;
-
 							usbc0_orien_sw: endpoint {
 								remote-endpoint = <&usbdp_phy0_orientation_switch>;
 							};
@@ -906,7 +919,6 @@
 
 						port@1 {
 							reg = <1>;
-
 							dp_altmode_mux: endpoint {
 								remote-endpoint = <&usbdp_phy0_dp_altmode_mux>;
 							};
@@ -1447,11 +1459,13 @@
 };
 
 &usbdp_phy0 {
-	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sbu_pins>;
 	orientation-switch;
 	svid = <0xff01>;
 	sbu1-dc-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
 	sbu2-dc-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
+	status = "okay";
 
 	port {
 		#address-cells = <1>;
@@ -1530,11 +1544,30 @@
 	status = "okay";
 };
 
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER0>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART0>;
+};
+
 &vp1 {
 	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
 	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER1>;
 	cursor-win-id = <ROCKCHIP_VOP2_ESMART1>;
 };
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER2 | 1 << ROCKCHIP_VOP2_ESMART2)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER2>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART2>;
+};
+
+&vp3 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER3>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART3>;
+};
+
 
 &avdd_0v75_s0 {
 	regulator-state-mem {
@@ -1691,6 +1724,12 @@
 	usb-typec {
 		usbc0_int: usbc0-int {
 			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+
+		sbu_pins: sbu-pins {
+			rockchip,pins =
+				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* TYPEC0_SBU2_DC */
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* TYPEC0_SBU1_DC */
 		};
 	};
 
