@@ -738,6 +738,13 @@
 	};
 };
 
+&i2c1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1m4_xfer>;
+	clock-frequency = <100000>;
+};
+
 &i2c2 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -934,6 +941,13 @@
 			#size-cells = <0>;
 		};
 	};
+};
+
+&i2c4 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m4_xfer>;
+	clock-frequency = <100000>;
 };
 
 &i2c6 {
@@ -1395,6 +1409,17 @@
 	status = "okay";
 };
 
+&spi0 {
+	pinctrl-0 = <&spi0m1_pins &spi0m1_cs1>;
+	pinctrl-names = "default";
+	num-cs = <2>;
+	status = "okay";
+
+	spi@1 {
+		compatible = "rohm,dh2228fv";
+		reg = <1>;
+	};
+};
 
 &tsadc {
 	status = "okay";
