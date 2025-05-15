@@ -407,6 +407,22 @@
 	};
 };
 
+&can1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1m1_pins>;
+	assigned-clocks = <&cru CLK_CAN1>;
+	assigned-clock-rates = <200000000>;
+};
+
+&can2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can2m1_pins>;
+	assigned-clocks = <&cru CLK_CAN2>;
+	assigned-clock-rates = <200000000>;
+};
+
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0_s0>;
 	// mem-supply = <&vdd_cpu_big0_s0>;
@@ -960,7 +976,7 @@
 		compatible = "rockchip,rk628";
 		reg = <0x51>;
 		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+		// reset-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 
 		panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
 		panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
@@ -1206,7 +1222,32 @@
 	status = "disabled";
 };
 
+
+&pwm1 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm1m2_pins>;
+	status = "okay";
+};
+
+&pwm3 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm3m3_pins>;
+	status = "okay";
+};
+
+&pwm4 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm4m1_pins>;
+	status = "okay";
+};
+
 &pwm13 {
+	status = "okay";
+};
+
+&pwm15 {
+	pinctrl-names = "active";
+	pinctrl-0 = <&pwm15m3_pins>;
 	status = "okay";
 };
 
@@ -1425,6 +1466,19 @@
 	status = "okay";
 };
 
+&uart6 {
+	pinctrl-0 = <&uart6m1_xfer>;
+	status = "okay";
+};
+
+&uart7 {
+	pinctrl-0 = <&uart7m2_xfer &uart7_rts>;
+	rts-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
+	linux,rs485-enabled-at-boot-time;
+	rs485-rx-during-tx;
+	status = "okay";
+};
+
 &u2phy0 {
 	status = "okay";
 };
@@ -1640,7 +1694,7 @@
 	brg {
 		brg_pins: brg-pins {
 			rockchip,pins =
-				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>, /* RESET_RK628 */
+				// <2 RK_PB5 GPIO_ACTIVE_LOWR;K_FUNC_GPIO &pcfg_pull_down>, /* RESET_RK628 */
 				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,	/* LVDS_BRG_EN */
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_nRESET */
 				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nSTBYB */
@@ -1723,6 +1777,12 @@
 		};
 	};
 
+	uart {
+		uart7_rts: uart7-rts {
+			rockchip,pins =
+				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 	usb {
 		fusb302_pins: fusb302-pins {
 			rockchip,pins =
