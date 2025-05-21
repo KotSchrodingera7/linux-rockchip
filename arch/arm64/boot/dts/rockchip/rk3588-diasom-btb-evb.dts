@@ -183,7 +183,6 @@
 	};
 
 	hdmi0_sound: hdmi0-sound {
-		status = "okay";
 		compatible = "rockchip,hdmi";
 		rockchip,mclk-fs = <128>;
 		rockchip,card-name = "rockchip-hdmi0";
@@ -759,6 +758,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1m4_xfer>;
 	clock-frequency = <100000>;
+
+	es8156: codec@8 {
+		compatible = "everest,es8156";
+		reg = <0x08>;
+		clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipim0_camera3_clk>;
+		#sound-dai-cells = <0>;
+	};
+
+
 };
 
 &i2c2 {
@@ -990,6 +1001,9 @@
 
 		rk628-hdmi-in;
 		hpd-output-inverted;
+
+		#sound-dai-cells = <0>;
+
 		rk628-lvds-out {
 			bus-format = "vesa_24";
 			link-type = "dual_link_odd_even_pixels";
@@ -1044,6 +1058,10 @@
 			#clock-cells = <0>;
 		};
 	};
+};
+
+&i2s5_8ch {
+	status = "okay";
 };
 
 &iep {
@@ -1268,6 +1286,16 @@
 };
 
 &rga3_1_mmu {
+	status = "okay";
+};
+
+&rknpu {
+	rknpu-supply = <&vdd_npu_s0>;
+	mem-supply = <&vdd_npu_mem_s0>;
+	status = "okay";
+};
+
+&rknpu_mmu {
 	status = "okay";
 };
 
