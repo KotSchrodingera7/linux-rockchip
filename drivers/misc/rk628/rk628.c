@@ -1456,7 +1456,7 @@ rk628_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto err_clk;
 	}
 
-	rk628->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
+	rk628->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(rk628->reset_gpio)) {
 		ret = PTR_ERR(rk628->reset_gpio);
 		dev_err(dev, "failed to request reset GPIO: %d\n", ret);
