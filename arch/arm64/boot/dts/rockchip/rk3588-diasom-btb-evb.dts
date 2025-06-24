@@ -28,6 +28,8 @@
 	aliases {
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
+		ethernet2 = &ethernet2;
+		ethernet3 = &ethernet3;
 		i2c9 = &i2c9;
 		i2c10 = &i2c10;
 		i2c11 = &i2c11;
@@ -36,9 +38,9 @@
 		mmc1 = &sdmmc;
 	};
 
-	// chosen {
-	// 	stdout-path = "serial2:1500000n8";
-	// };
+	chosen {
+		stdout-path = "serial2:1500000n8";
+	};
 
 	vcc12v_dcin: vcc12v-dcin {
 		compatible = "regulator-fixed";
@@ -633,23 +635,23 @@
 	pinctrl-0 = <&hdmim0_tx0_hpd>;
     // cec-enable = "true";
 
-	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
-	force-output;
-	force_timing{
-		clock-frequency = <148500000>;
-		hactive = <1920>;
-		vactive = <720>;
-		hback-porch = <148>;
-		hfront-porch = <88>;
-		vback-porch = <36>;
-		vfront-porch = <4>;
-		hsync-len = <44>;
-		vsync-len = <5>;
-		hsync-active = <1>;
-		vsync-active = <1>;
-		de-active = <0>;
-		pixelclk-active = <0>;
-	};
+	// force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+	// force-output;
+	// force_timing{
+	// 	clock-frequency = <148500000>;
+	// 	hactive = <1920>;
+	// 	vactive = <1080>;
+	// 	hback-porch = <148>;
+	// 	hfront-porch = <88>;
+	// 	vback-porch = <36>;
+	// 	vfront-porch = <4>;
+	// 	hsync-len = <44>;
+	// 	vsync-len = <5>;
+	// 	hsync-active = <1>;
+	// 	vsync-active = <1>;
+	// 	de-active = <0>;
+	// 	pixelclk-active = <0>;
+	// };
 
 };
 
@@ -997,7 +999,7 @@
 		panel-prepare-delay-ms = <60>;
 		panel-unprepare-delay-ms = <10>;
 		panel-disable-delay-ms = <60>;
-		status = "okay";
+		status = "disabled";
 
 		rk628-hdmi-in;
 		hpd-output-inverted;
@@ -1202,15 +1204,6 @@
 	status = "okay";
 };
 
-&pcie2x1l2 {
-	/* PCIE20_0 */
-	// pinctrl-names = "default";
-	// pinctrl-0 = <&pcie2x1l2_pins>;
-	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
-	vpcie3v3-supply = <&vcc_3v3_sys>;
-	status = "okay";
-};
-
 &pcie2x1l0 {
 	/* PCIE20_1 */
 	// pinctrl-names = "default";
@@ -1218,10 +1211,54 @@
 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
 	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x200000 0 0 0 0>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x20 0x2f>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ethernet2: ethernet@0,0 {
+			/* RTL8125BI-CG DD12 */
+			compatible = "pci10ec,8125";
+			reg = <0x210000 0 0 0 0>;
+			// nvmem-cells = <&mac2>;
+			// nvmem-cell-names = "mac-address";
+		};
+	};
 };
 
+&pcie2x1l2 {
+	/* PCIE20_0 */
+	// pinctrl-names = "default";
+	// pinctrl-0 = <&pcie2x1l2_pins>;
+	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc_3v3_sys>;
+	status = "okay";
+
+	pcie@0,0 {
+		reg = <0x400000 0 0 0 0>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x40 0x4f>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ethernet3: ethernet@0,0 {
+			/* RTL8125BI-CG DD8 */
+			compatible = "pci10ec,8125";
+			reg = <0x410000 0 0 0 0>;
+			// nvmem-cells = <&mac3>;
+			// nvmem-cell-names = "mac-address";
+		};
+	};
+};
+
+
 &pcie30phy {
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie3x4 {
@@ -1237,7 +1274,7 @@
 		      "ref";
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
-	status = "disabled";
+	status = "okay";
 };
 
 
