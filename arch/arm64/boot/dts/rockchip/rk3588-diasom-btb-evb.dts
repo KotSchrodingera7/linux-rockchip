@@ -409,7 +409,7 @@
 };
 
 &can1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&can1m1_pins>;
 	assigned-clocks = <&cru CLK_CAN1>;
@@ -417,7 +417,7 @@
 };
 
 &can2 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&can2m1_pins>;
 	assigned-clocks = <&cru CLK_CAN2>;
@@ -633,25 +633,25 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim0_tx0_hpd>;
-    // cec-enable = "true";
+    cec-enable = "true";
 
-	// force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
-	// force-output;
-	// force_timing{
-	// 	clock-frequency = <148500000>;
-	// 	hactive = <1920>;
-	// 	vactive = <1080>;
-	// 	hback-porch = <148>;
-	// 	hfront-porch = <88>;
-	// 	vback-porch = <36>;
-	// 	vfront-porch = <4>;
-	// 	hsync-len = <44>;
-	// 	vsync-len = <5>;
-	// 	hsync-active = <1>;
-	// 	vsync-active = <1>;
-	// 	de-active = <0>;
-	// 	pixelclk-active = <0>;
-	// };
+	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
+	force-output;
+	force_timing{
+		clock-frequency = <148500000>;
+		hactive = <1920>;
+		vactive = <720>;
+		hback-porch = <148>;
+		hfront-porch = <88>;
+		vback-porch = <36>;
+		vfront-porch = <4>;
+		hsync-len = <44>;
+		vsync-len = <5>;
+		hsync-active = <1>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
 
 };
 
@@ -756,7 +756,7 @@
 };
 
 &i2c1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1m4_xfer>;
 	clock-frequency = <100000>;
@@ -973,7 +973,7 @@
 };
 
 &i2c4 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m4_xfer>;
 	clock-frequency = <100000>;
@@ -999,7 +999,7 @@
 		panel-prepare-delay-ms = <60>;
 		panel-unprepare-delay-ms = <10>;
 		panel-disable-delay-ms = <60>;
-		status = "disabled";
+		status = "okay";
 
 		rk628-hdmi-in;
 		hpd-output-inverted;
@@ -1059,6 +1059,35 @@
 			clock-output-names = "xin32k";
 			#clock-cells = <0>;
 		};
+	};
+};
+
+
+
+&i2c7 {
+	status = "okay";
+	exp: gpio@22 {
+		/* DD23 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&exp_pins>;
+		compatible = "nxp,pcal6524";
+		reg = <0x22>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
+		gpio-line-names =
+			/* P0_0-7 */
+			"rev0", "rev1", "rev2", "rev3",
+			"p4", "p5", "p6", "p7",
+			/* P1_0-7 */
+			"p1", "GMAC0_RST", "GMAC1_RST", "HDMI_TX_ON",
+			"HDMI_RX_DET", "LCD_nSTBYB", "LCD_nRST", "LCD_PWREN",
+			/* P2_0-7 */
+			"", "", "", "",
+			"", "", "", "";
 	};
 };
 
@@ -1519,7 +1548,7 @@
 	pinctrl-0 = <&spi0m1_pins &spi0m1_cs1>;
 	pinctrl-names = "default";
 	num-cs = <2>;
-	status = "okay";
+	status = "disabled";
 
 	spi@1 {
 		compatible = "rohm,dh2228fv";
@@ -1533,7 +1562,7 @@
 
 &uart6 {
 	pinctrl-0 = <&uart6m1_xfer>;
-	status = "okay";
+	status = "disabled";
 };
 
 &uart7 {
@@ -1541,7 +1570,7 @@
 	rts-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_LOW>;
 	linux,rs485-enabled-at-boot-time;
 	rs485-rx-during-tx;
-	status = "okay";
+	status = "disabled";
 };
 
 &u2phy0 {
@@ -1777,6 +1806,13 @@
 		csi1_pwr: csi1-pwr-pins {
 			rockchip,pins =
 				<4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN1 */
+		};
+	};
+
+	exp {
+		exp_pins: exp-pins {
+			rockchip,pins =
+				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* GPIO_EXP_INT */
 		};
 	};
 
