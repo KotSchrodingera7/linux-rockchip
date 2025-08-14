@@ -586,7 +586,7 @@
 	pinctrl-0 = <&gmac0_miim &gmac0_tx_bus2 &gmac0_rx_bus2
 		     &gmac0_rgmii_clk &gmac0_rgmii_bus &eth0_pins>;
 
-	snps,reset-gpio = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&exp 9 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
@@ -595,6 +595,8 @@
 	phy-handle = <&rgmii_phy0>;
 	phy-mode = "rgmii-rxid";
 	tx_delay = <0x43>;
+	nvmem-cells = <&mac0>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -603,7 +605,7 @@
 	pinctrl-0 = <&gmac1_miim &gmac1_tx_bus2 &gmac1_rx_bus2
 		     &gmac1_rgmii_clk &gmac1_rgmii_bus &eth1_pins>;
 
-	snps,reset-gpio = <&gpio0 RK_PD3 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&exp 10 GPIO_ACTIVE_LOW>;
 	snps,reset-active-low;
 	/* Reset time is 20ms, 100ms for rtl8211f */
 	snps,reset-delays-us = <0 20000 100000>;
@@ -612,6 +614,8 @@
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-rxid";
 	tx_delay = <0x43>;
+	nvmem-cells = <&mac3>;
+	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
 
@@ -632,7 +636,7 @@
 &hdmi0 {
 	status = "okay";
 	pinctrl-names = "default";
-	pinctrl-0 = <&hdmim0_tx0_hpd>;
+	pinctrl-0 = <&hdmim0_tx0_hpd &hdmim2_tx0_sda &hdmim2_tx0_scl>;
     cec-enable = "true";
 
 	force-bus-format = <MEDIA_BUS_FMT_RGB888_1X24>;
@@ -652,7 +656,6 @@
 		de-active = <0>;
 		pixelclk-active = <0>;
 	};
-
 };
 
 &hdmi0_in_vp0 {
@@ -701,9 +704,9 @@
 	#sound-dai-cells = <1>;
 	/* Effective level used to trigger HPD: 0-low, 1-high */
 	hpd-trigger-level = <1>;
-	hdmirx-det-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_LOW>;
+	hdmirx-det-gpios = <&exp 912 GPIO_ACTIVE_LOW>;
 
-	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>;
+	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda>;
 	pinctrl-names = "default";
 };
 
@@ -806,7 +809,7 @@
 		compatible = "nxp,pca9546";
 		reg = <0x70>;
 		i2c-mux-idle-disconnect;
-		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 		vdd-supply = <&vcc_3v3_sys>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -988,11 +991,13 @@
 		pinctrl-0 = <&brg_pins>;
 		compatible = "rockchip,rk628";
 		reg = <0x51>;
+		interrupt-parent = <&gpio0>;
+		interrupts = <RK_PD3 IRQ_TYPE_LEVEL_HIGH>;
 		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		// reset-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
 
-		panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
-		panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
+		panel-enable-gpios = <&exp 13 GPIO_ACTIVE_HIGH>;
+		panel-reset-gpios = <&exp 14 GPIO_ACTIVE_LOW>;
 		panel-backlight = <&backlight>;
 		panel-reset-delay-ms = <10>;
 		panel-enable-delay-ms = <10>;
@@ -1060,12 +1065,31 @@
 			#clock-cells = <0>;
 		};
 	};
+
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_3v3_s3>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac0: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
 };
 
 
 
 &i2c7 {
 	status = "okay";
+	clock-frequency = <100000>;
 	exp: gpio@22 {
 		/* DD23 */
 		pinctrl-names = "default";
@@ -1078,16 +1102,80 @@
 		#interrupt-cells = <2>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <RK_PC4 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 		gpio-line-names =
 			/* P0_0-7 */
 			"rev0", "rev1", "rev2", "rev3",
-			"p4", "p5", "p6", "p7",
+			"p04", "p05", "p06", "p07",
 			/* P1_0-7 */
-			"p1", "GMAC0_RST", "GMAC1_RST", "HDMI_TX_ON",
+			"p10", "GMAC0_RST", "GMAC1_RST", "HDMI_TX_ON",
 			"HDMI_RX_DET", "LCD_nSTBYB", "LCD_nRST", "LCD_PWREN",
 			/* P2_0-7 */
-			"", "", "", "",
-			"", "", "", "";
+			"p20", "p21", "p22", "p23",
+			"p24", "p25", "p26", "p27";
+		line-output-high {
+			gpio-hog;
+			gpios = <15 GPIO_ACTIVE_HIGH>;
+			output-high;
+			line-name = "custom-high-pin";
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac1: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@51 {
+		compatible = "atmel,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac2: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac3: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
 	};
 };
 
@@ -1788,16 +1876,13 @@
 	brg {
 		brg_pins: brg-pins {
 			rockchip,pins =
-				// <2 RK_PB5 GPIO_ACTIVE_LOWR;K_FUNC_GPIO &pcfg_pull_down>, /* RESET_RK628 */
 				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,	/* LVDS_BRG_EN */
-				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_nRESET */
-				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nSTBYB */
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;	/* RESET_RK628 */
+				// <0 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>;	/* INT_RK628 */
 		};
 	};
 
 	csi {
-		/* csi0 clkout = cif_clk */
-
 		csi0_pwr: csi0-pwr-pins {
 			rockchip,pins =
 				<2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;		/* CSI_PWREN0 */
@@ -1812,20 +1897,11 @@
 	exp {
 		exp_pins: exp-pins {
 			rockchip,pins =
-				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* GPIO_EXP_INT */
+				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* GPIO_EXP_INT */
+				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;	/* GPIO_EXP_RESET */
 		};
 	};
 
-	hdmi {
-		hdmi0_scl: hdmi0-scl {
-			rockchip,pins =
-				<0 RK_PD5 11 &pcfg_pull_up>;
-		};
-		hdmi0_sda: hdmi0-sda {
-			rockchip,pins =
-				<0 RK_PD4 11 &pcfg_pull_up>;
-		};
-	};
 	leds {
 		leds_som_pins: leds-som-pins {
 			rockchip,pins =
