@@ -3536,7 +3536,7 @@ static void hdmirx_audio_set_fs(struct rk_hdmirx_dev *hdmirx_dev, u32 fs_audio)
 
 static void hdmirx_audio_fifo_init(struct rk_hdmirx_dev *hdmirx_dev)
 {
-	dev_info(hdmirx_dev->dev, "%s\n", __func__);
+	// dev_info(hdmirx_dev->dev, "%s\n", __func__);
 	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_CONTROL, 1);
 	usleep_range(200, 210);
 	hdmirx_writel(hdmirx_dev, AUDIO_FIFO_CONTROL, 0);
@@ -3784,9 +3784,9 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 	ch_audio = hdmirx_audio_ch(hdmirx_dev);
 	fifo_status2 =  hdmirx_readl(hdmirx_dev, AUDIO_FIFO_STATUS2);
 	if (fifo_status2 & (AFIFO_UNDERFLOW_ST | AFIFO_OVERFLOW_ST)) {
-		dev_warn(hdmirx_dev->dev, "%s: audio %s %#x, with fs %svalid %d\n",
-			 __func__, audio_fifo_err(fifo_status2), fifo_status2,
-			 is_validfs(fs_audio) ? "" : "in", fs_audio);
+		// dev_warn(hdmirx_dev->dev, "%s: audio %s %#x, with fs %svalid %d\n",
+			//  __func__, audio_fifo_err(fifo_status2), fifo_status2,
+			//  is_validfs(fs_audio) ? "" : "in", fs_audio);
 		if (is_validfs(fs_audio)) {
 			hdmirx_audio_set_fs(hdmirx_dev, fs_audio);
 			hdmirx_audio_set_ch(hdmirx_dev, ch_audio);
@@ -3807,8 +3807,8 @@ static void hdmirx_delayed_work_audio(struct work_struct *work)
 			 __func__, fs_audio, cur_state);
 		delay = 1000;
 	} else if (abs(fs_audio - as->fs_audio) > 1000 || ch_audio != as->ch_audio) {
-		dev_info(hdmirx_dev->dev, "%s: restart audio fs(%d -> %d) ch(%d -> %d)\n",
-			 __func__, as->fs_audio, fs_audio, as->ch_audio, ch_audio);
+		// dev_info(hdmirx_dev->dev, "%s: restart audio fs(%d -> %d) ch(%d -> %d)\n",
+			//  __func__, as->fs_audio, fs_audio, as->ch_audio, ch_audio);
 		hdmirx_audio_set_fs(hdmirx_dev, fs_audio);
 		hdmirx_audio_set_ch(hdmirx_dev, ch_audio);
 		hdmirx_enable_audio_output(hdmirx_dev, ch_audio, fs_audio, 0);

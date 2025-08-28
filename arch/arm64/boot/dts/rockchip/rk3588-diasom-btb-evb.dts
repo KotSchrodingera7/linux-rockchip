@@ -679,6 +679,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim2_tx1_cec &hdmim1_tx1_hpd &hdmim1_tx1_scl &hdmim1_tx1_sda>;
     cec-enable = "true";
+
+	force-bus-format = <MEDIA_BUS_FMT_YUYV8_1X16>;
+	force-output;
+	force_timing{
+		clock-frequency = <148500000>;
+		hactive = <1920>;
+		vactive = <720>;
+		hback-porch = <148>;
+		hfront-porch = <88>;
+		vback-porch = <36>;
+		vfront-porch = <4>;
+		hsync-len = <44>;
+		vsync-len = <5>;
+		hsync-active = <1>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
 };
 
 &hdmi1_in_vp0 {
@@ -701,10 +719,10 @@
 &hdmirx_ctrler {
 	status = "okay";
 
-	#sound-dai-cells = <1>;
+	// #sound-dai-cells = <1>;
 	/* Effective level used to trigger HPD: 0-low, 1-high */
 	hpd-trigger-level = <1>;
-	hdmirx-det-gpios = <&exp 912 GPIO_ACTIVE_LOW>;
+	hdmirx-det-gpios = <&gpio1 RK_PA3 GPIO_ACTIVE_LOW>;
 
 	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda>;
 	pinctrl-names = "default";
@@ -838,7 +856,7 @@
 					imx335_i2c9_out: endpoint {
 						data-lanes = <1 2 3 4>;
 						remote-endpoint = <&mipidphy0_in_ucam0>;
-						link-frequencies = /bits/ 64 <594000000>;
+						// link-frequencies = /bits/ 64 <594000000>;
 					};
 				};
 			};
@@ -891,7 +909,7 @@
 					imx335_i2c10_out: endpoint {
 						data-lanes = <1 2 3 4>;
 						remote-endpoint = <&mipidphy1_in_ucam1>;
-						link-frequencies = /bits/ 64 <594000000>;
+						// link-frequencies = /bits/ 64 <594000000>;
 					};
 				};
 			};
@@ -927,7 +945,7 @@
 					ccompatible = "usb-c-connector";
 					label = "USB-C";
 					data-role = "dual";
-					power-role = "source";
+					power-role = "dual";
 					try-power-role = "sink";
 					op-sink-microwatt = <1000000>;
 					sink-pdos =
@@ -1180,6 +1198,10 @@
 };
 
 &i2s5_8ch {
+	status = "okay";
+};
+
+&i2s7_8ch {
 	status = "okay";
 };
 
