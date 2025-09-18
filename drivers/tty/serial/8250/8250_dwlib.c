@@ -254,15 +254,15 @@ static bool dw8250_detect_rs485_hw(struct uart_port *p)
 {
 	u32 reg;
 
-#ifdef CONFIG_ARCH_ROCKCHIP
-	dw8250_writel_ext(p, DW_UART_TCR, 1);
-#endif
+// #ifdef CONFIG_ARCH_ROCKCHIP
+// 	dw8250_writel_ext(p, DW_UART_TCR, 1);
+// #endif
 	dw8250_writel_ext(p, DW_UART_RE_EN, 1);
 	reg = dw8250_readl_ext(p, DW_UART_RE_EN);
 	dw8250_writel_ext(p, DW_UART_RE_EN, 0);
-#ifdef CONFIG_ARCH_ROCKCHIP
-	dw8250_writel_ext(p, DW_UART_TCR, 0);
-#endif
+// #ifdef CONFIG_ARCH_ROCKCHIP
+// 	dw8250_writel_ext(p, DW_UART_TCR, 0);
+// #endif
 	return reg;
 }
 
