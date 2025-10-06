@@ -710,7 +710,7 @@
 	hpd-trigger-level = <1>;
 	hdmirx-det-gpios = <&gpio3 RK_PC7 GPIO_ACTIVE_LOW>;
 
-	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>
+	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>;
 	pinctrl-names = "default";
 };
 
@@ -1000,8 +1000,8 @@
 		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
 
-		panel-enable-gpios = <&exp 13 GPIO_ACTIVE_HIGH>;
-		panel-reset-gpios = <&exp 14 GPIO_ACTIVE_LOW>;
+		panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
 		panel-backlight = <&backlight>;
 		panel-reset-delay-ms = <10>;
 		panel-enable-delay-ms = <10>;
