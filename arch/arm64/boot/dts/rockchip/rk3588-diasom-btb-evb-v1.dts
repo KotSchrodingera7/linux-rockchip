@@ -846,28 +846,6 @@
 					};
 				};
 			};
-
-			// imx678: camera@1a {
-			// 	compatible = "sony,imx678";
-			// 	reg = <0x1a>;
-			// 	// clocks = <&sensor_clk>;
-			// 	clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
-			// 	clock-names = "inclk";
-			// 	clock-frequency = <24000000>;
-			// 	pinctrl-names = "default";
-			// 	pinctrl-0 = <&mipim0_camera1_clk>;
-			// 	csi-id = <0>;
-			// 	reset-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
-			// 	status = "okay";
-
-			// 	port {
-			// 		imx678_out: endpoint {
-			// 			data-lanes = <1 2 3 4>;
-			// 			remote-endpoint = <&mipidphy0_in_ucam0>;
-			// 			link-frequencies = /bits/ 64 <891000000 1440000000 1782000000>;
-			// 		};
-			// 	};
-			// };
 		};
 
 		i2c10: i2c@1 {
@@ -1983,9 +1961,9 @@
 	};
 
 	hdmirx {
-		hdmirx_det: hdmirx-det {
-			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
-		};
+		// hdmirx_det: hdmirx-det {
+		// 	rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		// };
 	};
 
 	sdio-pwrseq {
