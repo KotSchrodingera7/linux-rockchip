@@ -1961,9 +1961,9 @@
 	};
 
 	hdmirx {
-		// hdmirx_det: hdmirx-det {
-		// 	rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
-		// };
+		hdmirx_det: hdmirx-det {
+			rockchip,pins = <3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
 	};
 
 	sdio-pwrseq {
