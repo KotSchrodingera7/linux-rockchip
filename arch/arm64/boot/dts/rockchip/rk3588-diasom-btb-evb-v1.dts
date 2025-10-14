@@ -673,6 +673,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim2_tx1_cec &hdmim1_tx1_hpd &hdmim1_tx1_scl &hdmim1_tx1_sda>;
     cec-enable = "true";
+
+	force-bus-format = <MEDIA_BUS_FMT_YUYV8_1X16>;
+	force-output;
+	force_timing{
+		clock-frequency = <148500000>;
+		hactive = <1920>;
+		vactive = <720>;
+		hback-porch = <148>;
+		hfront-porch = <88>;
+		vback-porch = <36>;
+		vfront-porch = <4>;
+		hsync-len = <44>;
+		vsync-len = <5>;
+		hsync-active = <1>;
+		vsync-active = <1>;
+		de-active = <0>;
+		pixelclk-active = <0>;
+	};
 };
 
 &hdmi1_in_vp0 {
@@ -1020,6 +1038,86 @@
 			clock-frequency = <32768>;
 			clock-output-names = "xin32k";
 			#clock-cells = <0>;
+		};
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_3v3_s3>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac0: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+};
+
+&i2c7 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	/* 24aa025e48 */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac1: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@51 {
+		compatible = "atmel,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac2: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
+		};
+	};
+
+	/* 24aa025e48 */
+	eeprom@52 {
+		compatible = "atmel,24c02";
+		reg = <0x52>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+
+		nvmem-layout {
+			compatible = "fixed-layout";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mac3: mac-address@fa {
+				reg = <0xfa 0x06>;
+				read-only;
+			};
 		};
 	};
 };
