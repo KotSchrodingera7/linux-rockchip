@@ -835,28 +835,6 @@
 					};
 				};
 			};
-
-			// imx678: camera@1a {
-			// 	compatible = "sony,imx678";
-			// 	reg = <0x1a>;
-			// 	// clocks = <&sensor_clk>;
-			// 	clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
-			// 	clock-names = "inclk";
-			// 	clock-frequency = <24000000>;
-			// 	pinctrl-names = "default";
-			// 	pinctrl-0 = <&mipim0_camera1_clk>;
-			// 	csi-id = <0>;
-			// 	reset-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
-			// 	status = "okay";
-
-			// 	port {
-			// 		imx678_out: endpoint {
-			// 			data-lanes = <1 2 3 4>;
-			// 			remote-endpoint = <&mipidphy0_in_ucam0>;
-			// 			link-frequencies = /bits/ 64 <891000000 1440000000 1782000000>;
-			// 		};
-			// 	};
-			// };
 		};
 
 		i2c10: i2c@1 {
@@ -918,25 +896,34 @@
 					};
 				};
 
-				connector {
-					compatible = "usb-c-connector";
+				usb_con: connector {
+					ccompatible = "usb-c-connector";
 					label = "USB-C";
 					data-role = "dual";
-					op-sink-microwatt = <1000000>;
 					power-role = "dual";
+					try-power-role = "sink";
+					op-sink-microwatt = <1000000>;
 					sink-pdos =
 						<PDO_FIXED(5000, 1000, PDO_FIXED_USB_COMM)>;
 					source-pdos =
 						<PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
-					try-power-role = "source";
+
+					altmodes {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						altmode@0 {
+							reg = <0>;
+							svid = <0xff01>;
+							vdo = <0xffffffff>;
+						};
+					};
 
 					ports {
 						#address-cells = <1>;
 						#size-cells = <0>;
-
 						port@0 {
 							reg = <0>;
-
 							usbc0_orien_sw: endpoint {
 								remote-endpoint = <&usbdp_phy0_orientation_switch>;
 							};
@@ -944,7 +931,6 @@
 
 						port@1 {
 							reg = <1>;
-
 							dp_altmode_mux: endpoint {
 								remote-endpoint = <&usbdp_phy0_dp_altmode_mux>;
 							};
@@ -1577,6 +1563,8 @@
 
 &usbdp_phy0 {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&sbu_pins>;
 	orientation-switch;
 	svid = <0xff01>;
 	sbu1-dc-gpios = <&gpio0 RK_PC5 GPIO_ACTIVE_HIGH>;
@@ -1830,6 +1818,12 @@
 	usb-typec {
 		usbc0_int: usbc0-int {
 			rockchip,pins = <3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		
+		sbu_pins: sbu-pins {
+			rockchip,pins =
+				<0 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* TYPEC0_SBU2_DC */
+				<0 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* TYPEC0_SBU1_DC */
 		};
 	};
 
