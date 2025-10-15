@@ -149,8 +149,6 @@
 	vcc5v0_usb3_otg: vcc5v0-usb3-otg-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_usb3_otg";
-		regulator-boot-on;
-		regulator-always-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		enable-active-high;
