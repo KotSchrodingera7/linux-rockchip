@@ -1234,7 +1234,7 @@
 
 
 &pcie30phy {
-	status = "disabled";
+	status = "okay";
 };
 
 &pcie3x4 {
@@ -1250,7 +1250,7 @@
 		      "ref";
 	reset-gpios = <&gpio1 RK_PB2 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie30>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pwm13 {
