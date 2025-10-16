@@ -959,7 +959,6 @@
 		compatible = "rockchip,rk628";
 		reg = <0x51>;
 		enable-gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio2 RK_PB5 GPIO_ACTIVE_HIGH>;
 
 		panel-enable-gpios = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
 		panel-reset-gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
@@ -1710,7 +1709,6 @@
 	brg {
 		brg_pins: brg-pins {
 			rockchip,pins =
-				<2 RK_PB5 RK_FUNC_GPIO &pcfg_pull_down>, /* RESET_RK628 */
 				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_up>,	/* LVDS_BRG_EN */
 				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_nRESET */
 				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nSTBYB */
