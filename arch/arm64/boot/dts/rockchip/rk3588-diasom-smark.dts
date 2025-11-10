@@ -82,7 +82,36 @@
 		regulator-max-microvolt = <3300000>;
 		vin-supply = <&vcc12v_dcin>;
 	};
-		
+	
+	vcc3v3_pcie20_0: vcc3v3-pcie20-0 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie20_0_vcc_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie20_0";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		gpios = <&gpio1 RK_PC0 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc_3v3_sys>;
+	};
+
+	vcc3v3_pcie20_1: vcc3v3-pcie20-1 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pcie20_1_vcc_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_pcie20_1";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_HIGH>;
+		startup-delay-us = <5000>;
+		vin-supply = <&vcc_3v3_sys>;
+	};
+
+
 	sensor_clk: sensor_clk {
         compatible = "fixed-clock";
         #clock-cells = <0>;
@@ -204,6 +233,32 @@
 	};
 };
 
+&can1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1m1_pins>;
+	assigned-clocks = <&cru CLK_CAN1>;
+	assigned-clock-rates = <200000000>;
+};
+
+&can2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&can2m1_pins>;
+	assigned-clocks = <&cru CLK_CAN2>;
+	assigned-clock-rates = <200000000>;
+};
+
+&combphy0_ps {
+	/* pcie2x1l2 (PCIE20_0) */
+	status = "okay";
+};
+
+&combphy1_ps {
+	/* pcie2x1l0 (PCIE20_1) */
+	status = "okay";
+};
+
 &cpu_b0 {
 	cpu-supply = <&vdd_cpu_big0_s0>;
 	// mem-supply = <&vdd_cpu_big0_s0>;
@@ -252,6 +307,11 @@
 	operating-points-v2 = <&cluster0_opp_table_m>;
 };
 
+&display_subsystem {
+	clocks = <&hdptxphy_hdmi0>, <&hdptxphy_hdmi1>;
+	clock-names = "hdmi0_phy_pll", "hdmi1_phy_pll";
+};
+
 &dmc {
 	center-supply = <&vdd_ddr_s0>;
 	mem-supply = <&vdd_log_s0>;
@@ -262,6 +322,29 @@
 	mali-supply = <&vdd_gpu_s0>;
 	mem-supply = <&vdd_gpu_mem_s0>;
 	status = "okay";
+};
+
+&hdptxphy_hdmi1 {
+	status = "okay";
+};
+
+&hdmi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&hdmim0_tx1_hpd>;
+    cec-enable = "true";
+};
+
+&hdmi1_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi1_in_vp1 {
+	status = "okay";
+};
+
+&hdmi1_in_vp2 {
+	status = "disabled";
 };
 
 &i2c0 {
@@ -323,6 +406,56 @@
 		regulator-always-on;
 		regulator-state-mem {
 			regulator-off-in-suspend;
+		};
+	};
+
+	
+};
+
+
+&pcie2x1l0 {
+	/* PCIE20_1 */
+	pinctrl-0 = <&pcie20x1_pins>;
+	reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie20_1>;
+	status = "disabled";
+
+	pcie@0,0 {
+		reg = <0x200000 0 0 0 0>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x20 0x2f>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ethernet2: ethernet@0,0 {
+			/* RTL8125BI-CG DD12 */
+			compatible = "pci10ec,8125";
+			reg = <0x210000 0 0 0 0>;
+		};
+	};
+};
+
+&pcie2x1l2 {
+	/* PCIE20_0 */
+	reset-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+	vpcie3v3-supply = <&vcc3v3_pcie20_0>;
+	status = "disabled";
+
+	pcie@0,0 {
+		reg = <0x400000 0 0 0 0>;
+		ranges;
+		device_type = "pci";
+		bus-range = <0x40 0x4f>;
+		#address-cells = <3>;
+		#size-cells = <2>;
+
+		ethernet3: ethernet@0,0 {
+			/* RTL8125BI-CG DD8 */
+			compatible = "pci10ec,8125";
+			reg = <0x410000 0 0 0 0>;
+			// nvmem-cells = <&mac3>;
+			// nvmem-cell-names = "mac-address";
 		};
 	};
 };
@@ -394,6 +527,53 @@
 	status = "okay";
 };
 
+&vop {
+	status = "okay";
+};
+
+&vop_mmu {
+	status = "okay";
+};
+
+&uart1 {
+	pinctrl-0 = <&uart1m1_xfer>;
+	status = "okay";
+};
+
+&uart6 {
+	pinctrl-0 = <&uart6m1_xfer &uart6m1_ctsn &uart6m1_rtsn>;
+	status = "okay";
+};
+
+&uart9 {
+	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn &uart9m2_rtsn>;
+	status = "okay";
+};
+
+&vp0 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER0 | 1 << ROCKCHIP_VOP2_ESMART0)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER0>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART0>;
+};
+
+&vp1 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER1 | 1 << ROCKCHIP_VOP2_ESMART1)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER1>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART1>;
+};
+
+&vp2 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER2 | 1 << ROCKCHIP_VOP2_ESMART2)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER2>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART2>;
+};
+
+&vp3 {
+	rockchip,plane-mask = <(1 << ROCKCHIP_VOP2_CLUSTER3 | 1 << ROCKCHIP_VOP2_ESMART3)>;
+	rockchip,primary-plane = <ROCKCHIP_VOP2_CLUSTER3>;
+	cursor-win-id = <ROCKCHIP_VOP2_ESMART3>;
+};
+
 &avdd_0v75_s0 {
 	regulator-state-mem {
 		regulator-on-in-suspend;
@@ -433,5 +613,31 @@
 	regulator-state-mem {
 		regulator-on-in-suspend;
 		regulator-suspend-microvolt = <850000>;
+	};
+};
+
+
+&pinctrl {
+
+	pcie {
+		pcie20_0_vcc_pins: pcie20-0-vcc-pins {
+			rockchip,pins =
+				<1 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_PWREN */
+		};
+
+		pcie20_1_vcc_pins: pcie20-1-vcc-pins {
+			rockchip,pins =
+				<1 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* PCIE30_PWREN */
+		};
+
+		pcie20x1_pins: pcie20x1-pins {
+			rockchip,pins =
+				/* pcie30x1_0_clkreqn_m2 */
+				<1 RK_PB5 4 &pcfg_pull_none>,
+				/* pcie30x1_0_perstn_m2 */
+				<1 RK_PB4 4 &pcfg_pull_none>,
+				/* pcie30x1_0_waken_m2 */
+				<1 RK_PB3 4 &pcfg_pull_none>;
+		};
 	};
 };
