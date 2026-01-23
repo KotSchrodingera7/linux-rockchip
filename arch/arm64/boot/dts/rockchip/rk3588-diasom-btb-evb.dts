@@ -1686,7 +1686,7 @@
 	rs485-rts-active-low;
 	rs485-rx-during-tx;
 	dma-names = "tx", "rx";
-	status = "okay";
+	status = "disabled";
 };
 
 &uart9 {
@@ -1696,7 +1696,7 @@
 	rs485-rts-active-low;
 	rs485-rx-during-tx;
 	dma-names = "tx", "rx";
-	status = "okay";
+	status = "disabled";
 };
 
 &u2phy0 {
