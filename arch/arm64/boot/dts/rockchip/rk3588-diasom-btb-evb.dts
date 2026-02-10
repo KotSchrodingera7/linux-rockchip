@@ -409,7 +409,7 @@
 };
 
 &can1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&can1m1_pins>;
 	assigned-clocks = <&cru CLK_CAN1>;
@@ -417,7 +417,7 @@
 };
 
 &can2 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&can2m1_pins>;
 	assigned-clocks = <&cru CLK_CAN2>;
@@ -618,7 +618,7 @@
 	phy-handle = <&rgmii_phy1>;
 	phy-mode = "rgmii-rxid";
 	tx_delay = <0x43>;
-	nvmem-cells = <&mac3>;
+	nvmem-cells = <&mac1>;
 	nvmem-cell-names = "mac-address";
 	status = "okay";
 };
@@ -721,7 +721,7 @@
 
 /* Should work with at least 128MB cma reserved above. */
 &hdmirx_ctrler {
-	status = "okay";
+	status = "disabled";
 
 	// #sound-dai-cells = <1>;
 	/* Effective level used to trigger HPD: 0-low, 1-high */
@@ -730,14 +730,6 @@
 
 	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda>;
 	pinctrl-names = "default";
-};
-
-&hdptxphy_hdmi0 {
-	status = "okay";
-};
-
-&hdptxphy_hdmi1 {
-	status = "okay";
 };
 
 &i2c0 {
@@ -864,28 +856,6 @@
 					};
 				};
 			};
-
-			// imx678: camera@1a {
-			// 	compatible = "sony,imx678";
-			// 	reg = <0x1a>;
-			// 	// clocks = <&sensor_clk>;
-			// 	clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
-			// 	clock-names = "inclk";
-			// 	clock-frequency = <24000000>;
-			// 	pinctrl-names = "default";
-			// 	pinctrl-0 = <&mipim0_camera1_clk>;
-			// 	csi-id = <0>;
-			// 	reset-gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
-			// 	status = "okay";
-
-			// 	port {
-			// 		imx678_out: endpoint {
-			// 			data-lanes = <1 2 3 4>;
-			// 			remote-endpoint = <&mipidphy0_in_ucam0>;
-			// 			link-frequencies = /bits/ 64 <891000000 1440000000 1782000000>;
-			// 		};
-			// 	};
-			// };
 		};
 
 		i2c10: i2c@1 {
@@ -1094,15 +1064,12 @@
 		pagesize = <16>;
 		vcc-supply = <&vcc_3v3_s3>;
 
-		nvmem-layout {
-			compatible = "fixed-layout";
-			#address-cells = <1>;
-			#size-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-			mac0: mac-address@fa {
-				reg = <0xfa 0x06>;
-				read-only;
-			};
+		mac0: mac-address@fa {
+			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 };
@@ -1150,15 +1117,11 @@
 		pagesize = <16>;
 		vcc-supply = <&vcc_1v8_sys>;
 
-		nvmem-layout {
-			compatible = "fixed-layout";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			mac1: mac-address@fa {
-				reg = <0xfa 0x06>;
-				read-only;
-			};
+		#address-cells = <1>;
+		#size-cells = <1>;
+		mac1: mac-address@fa {
+			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 
@@ -1169,15 +1132,12 @@
 		pagesize = <16>;
 		vcc-supply = <&vcc_1v8_sys>;
 
-		nvmem-layout {
-			compatible = "fixed-layout";
-			#address-cells = <1>;
-			#size-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-			mac2: mac-address@fa {
-				reg = <0xfa 0x06>;
-				read-only;
-			};
+		mac2: mac-address@fa {
+			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 
@@ -1188,15 +1148,11 @@
 		pagesize = <16>;
 		vcc-supply = <&vcc_1v8_sys>;
 
-		nvmem-layout {
-			compatible = "fixed-layout";
-			#address-cells = <1>;
-			#size-cells = <1>;
-
-			mac3: mac-address@fa {
-				reg = <0xfa 0x06>;
-				read-only;
-			};
+		#address-cells = <1>;
+		#size-cells = <1>;
+		mac3: mac-address@fa {
+			reg = <0xfa 0x06>;
+			read-only;
 		};
 	};
 };
@@ -1349,8 +1305,6 @@
 
 &pcie2x1l0 {
 	/* PCIE20_1 */
-	// pinctrl-names = "default";
-	// pinctrl-0 = <&pcie2x1l0_pins>;
 	reset-gpios = <&gpio4 RK_PA5 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
 	status = "okay";
@@ -1367,16 +1321,14 @@
 			/* RTL8125BI-CG DD12 */
 			compatible = "pci10ec,8125";
 			reg = <0x210000 0 0 0 0>;
-			// nvmem-cells = <&mac2>;
-			// nvmem-cell-names = "mac-address";
+			nvmem-cells = <&mac2>;
+			nvmem-cell-names = "mac-address";
 		};
 	};
 };
 
 &pcie2x1l2 {
 	/* PCIE20_0 */
-	// pinctrl-names = "default";
-	// pinctrl-0 = <&pcie2x1l2_pins>;
 	reset-gpios = <&gpio4 RK_PC1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc_3v3_sys>;
 	status = "okay";
@@ -1393,8 +1345,8 @@
 			/* RTL8125BI-CG DD8 */
 			compatible = "pci10ec,8125";
 			reg = <0x410000 0 0 0 0>;
-			// nvmem-cells = <&mac3>;
-			// nvmem-cell-names = "mac-address";
+			nvmem-cells = <&mac3>;
+			nvmem-cell-names = "mac-address";
 		};
 	};
 };
