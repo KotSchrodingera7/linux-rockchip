@@ -1078,6 +1078,25 @@ static bool rk628_hdmirx_status_change(struct rk628 *rk628)
 	return false;
 }
 
+
+static void rk628_clk_mux_testout(struct rk628 *rk628, int id)
+{
+	switch (id) {
+	case CGU_CLK_CPLL:
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON06, 0x000f0004);
+		break;
+	case CGU_CLK_GPLL:
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON06, 0x000f0002);
+		break;
+	case CGU_CLK_HDMIRX_AUD:
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON06, 0x000f000b);
+		break;
+	case CGU_CLK_HDMIRX_CEC:
+		rk628_i2c_write(rk628, CRU_CLKSEL_CON06, 0x000f000c);
+		break;
+	}
+}
+
 static int rk628_hdmirx_init(struct rk628 *rk628)
 {
 	struct rk628_hdmirx *hdmirx;
@@ -1110,7 +1129,8 @@ static int rk628_hdmirx_init(struct rk628 *rk628)
 	rk628_i2c_write(rk628, GRF_GPIO0AB_SEL_CON, 0x155c155c);
 
 	/* enable */
-	rk628_i2c_write(rk628, GRF_GPIO1AB_SEL_CON, HIWORD_UPDATE(0, 0, 0));
+	rk628_clk_mux_testout(rk628, CGU_CLK_HDMIRX_AUD);
+	rk628_i2c_write(rk628, GRF_GPIO1AB_SEL_CON, HIWORD_UPDATE(0x1, 0, 0));
 	rk628_i2c_write(rk628, GRF_GPIO3AB_SEL_CON, HIWORD_UPDATE(1, 14, 14));
 
 	/* if GVI and HDMITX OUT, HDMIRX missing signal */

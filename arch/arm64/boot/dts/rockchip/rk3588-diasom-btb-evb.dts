@@ -26,6 +26,8 @@
 	compatible = "diasom, btb-evb", "rockchip,rk3588";
 
 	aliases {
+		can1 = &can1;
+		can2 = &can2;
 		ethernet0 = &gmac0;
 		ethernet1 = &gmac1;
 		ethernet2 = &ethernet2;
@@ -201,6 +203,27 @@
 		rockchip,cpu = <&i2s6_8ch>;
 		rockchip,codec = <&hdmi1>;
 		rockchip,jack-det;
+	};
+
+	rk628_dc: rk628-dc {
+		compatible = "rockchip,dummy-codec";
+		#sound-dai-cells = <0>;
+	};
+
+	hdmiin-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "rockchip,hdmiin";
+		simple-audio-card,bitclock-master = <&dailink0_master>;
+		simple-audio-card,frame-master = <&dailink0_master>;
+		status = "okay";
+		simple-audio-card,cpu {
+	
+			sound-dai = <&i2s5_8ch>;
+		};
+		dailink0_master: simple-audio-card,codec {
+			sound-dai = <&rk628_dc>;
+		};
 	};
 
 	pcie_refclk: pcie-refclk-clock {
@@ -1615,10 +1638,9 @@
 	pinctrl-names = "default";
 	num-cs = <2>;
 	status = "disabled";
-
-	spi@1 {
+	spi@0 {
 		compatible = "rohm,dh2228fv";
-		reg = <1>;
+		reg = <0>;
 	};
 };
 
