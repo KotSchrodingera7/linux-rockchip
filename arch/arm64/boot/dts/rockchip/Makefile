@@ -327,6 +327,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3576s-tablet-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-diasom-btb-evb.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-diasom-btb-evb-v1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-diasom-smark.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-diasom-btb-evb-hat.dtbo
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-dsi-dsc-MV2100UZ1.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3588-evb1-lp4-v10-edp-8lanes-M280DCA.dtb
