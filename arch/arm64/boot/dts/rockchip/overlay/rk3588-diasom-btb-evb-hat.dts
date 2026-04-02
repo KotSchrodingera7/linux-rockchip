@@ -1,6 +1,9 @@
 /dts-v1/;
 /plugin/;
 
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
 / {
 	compatible = "diasom,btb-evb", "rockchip,rk3588";
 
@@ -80,6 +83,13 @@
 		target = <&i2c1>;
 		__overlay__ {
 			status = "okay";
+		};
+	};
+
+	fragment@6 {
+		target = <&hdmirx_ctrler>;
+		__overlay__ {
+			hdmirx-det-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
