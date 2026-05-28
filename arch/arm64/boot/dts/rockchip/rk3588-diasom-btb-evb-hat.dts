@@ -113,4 +113,16 @@
 		};
 	};
 
+	fragment@8 {
+		target = <&pinctrl>;
+		
+		__overlay__ {
+			hdmirx {
+				hdmirx_det: hdmirx-det {
+					rockchip,pins = <3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+				};
+			};
+		};
+	};
+
 };
