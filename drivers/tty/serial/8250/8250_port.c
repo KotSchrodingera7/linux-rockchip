@@ -2963,24 +2963,24 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		serial_port_out(port, UART_FCR, up->fcr);	/* set fcr */
 	}
 	serial8250_set_mctrl(port, port->mctrl);
-// #ifdef CONFIG_ARCH_ROCKCHIP
+#ifdef CONFIG_ARCH_ROCKCHIP
 	/*
 	 * CTS flow control flag and modem status interrupts
 	 */
-	// up->ier &= ~UART_IER_MSI;
-	// if (!(up->bugs & UART_BUG_NOMSR) &&
-	// 		UART_ENABLE_MS(&up->port, termios->c_cflag))
-	// 	up->ier |= UART_IER_MSI;
-	// if (up->capabilities & UART_CAP_UUE)
-	// 	up->ier |= UART_IER_UUE;
-	// if (up->capabilities & UART_CAP_RTOIE)
-	// 	up->ier |= UART_IER_RTOIE;
+	up->ier &= ~UART_IER_MSI;
+	if (!(up->bugs & UART_BUG_NOMSR) &&
+			UART_ENABLE_MS(&up->port, termios->c_cflag))
+		up->ier |= UART_IER_MSI;
+	if (up->capabilities & UART_CAP_UUE)
+		up->ier |= UART_IER_UUE;
+	if (up->capabilities & UART_CAP_RTOIE)
+		up->ier |= UART_IER_RTOIE;
 
-	// serial_port_out(port, UART_IER, up->ier);
+	serial_port_out(port, UART_IER, up->ier);
 #ifdef CONFIG_NO_GKI
 	serial_port_out(port, UART_RS485_TCR, up->tcr);
 #endif
-// #endif
+#endif
 	spin_unlock_irqrestore(&port->lock, flags);
 	serial8250_rpm_put(up);
 
