@@ -118,6 +118,30 @@
 		startup-delay-us = <250000>;
 	};
 
+	vcc_lvds: vcc-lvds-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&lvds_vcc_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lvds";
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vcc_lcd: vcc-lcd-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_vcc_pins>;
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_lcd";
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
 	vcc3v3_pcie20_0: vcc3v3-pcie20-0 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pcie20_0_vcc_pins>;
@@ -202,9 +226,9 @@
 			opp-microvolt = <850000 850000 950000>;
 			clock-latency-ns = <40000>;
 		};
-		opp-1800000000 {
-			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <950000 950000 950000>;
+		opp-1704000000 {
+			opp-hz = /bits/ 64 <1704000000>;
+			opp-microvolt = <937500 937500 950000>;
 			clock-latency-ns = <40000>;
 		};
 	};
@@ -238,16 +262,6 @@
 			opp-microvolt = <925000 925000 1000000>;
 			clock-latency-ns = <40000>;
 		};
-		opp-2208000000 {
-			opp-hz = /bits/ 64 <2208000000>;
-			opp-microvolt = <987500 987500 1000000>;
-			clock-latency-ns = <40000>;
-		};
-		opp-2400000000 {
-			opp-hz = /bits/ 64 <2400000000>;
-			opp-microvolt = <1000000 1000000 1000000>;
-			clock-latency-ns = <40000>;
-		};
 	};
 
 	cluster2_opp_table_m: opp-table-cluster2 {
@@ -279,15 +293,56 @@
 			opp-microvolt = <925000 925000 1000000>;
 			clock-latency-ns = <40000>;
 		};
-		opp-2208000000 {
-			opp-hz = /bits/ 64 <2208000000>;
-			opp-microvolt = <987500 987500 1000000>;
-			clock-latency-ns = <40000>;
+	};
+
+	// backlight: backlight {
+	// 	compatible = "pwm-backlight";
+	// 	pinctrl-names = "default";
+	// 	pinctrl-0 = <&backlight_pins>;
+	// 	pwms = <&pwm6 0 1000 0>;
+	// 	brightness-levels = <0 255>;
+	// 	num-interpolated-steps = <256>;
+	// 	default-brightness-level = <100>;
+	// 	enable-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+	// };
+
+	panel_lvds: panel-lvds {
+		compatible = "panel-lvds";
+
+		data-mapping = "vesa-24";
+
+		width-mm = <154>;
+		height-mm = <86>;
+
+		power-supply = <&vcc_lcd>;
+		// backlight = <&backlight>;
+
+		enable-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
+
+		panel-timing {
+			clock-frequency = <148500000>;
+
+			hactive = <1920>;
+			hfront-porch = <88>;
+			hsync-len = <44>;
+			hback-porch = <148>;
+
+			vactive = <720>;
+			vfront-porch = <4>;
+			vsync-len = <5>;
+			vback-porch = <36>;
+
+			hsync-active = <1>;
+			vsync-active = <1>;
+			de-active = <1>;
+			pixelclk-active = <0>;
 		};
-		opp-2400000000 {
-			opp-hz = /bits/ 64 <2400000000>;
-			opp-microvolt = <1000000 1000000 1000000>;
-			clock-latency-ns = <40000>;
+
+		port {
+			panel_lvds_in: endpoint {
+				remote-endpoint = <&lt9211_lvds_out>;
+			};
 		};
 	};
 };
@@ -466,12 +521,33 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp0_tx1_hpd>;
 	hpd-gpios = <&gpio2 RK_PC1 GPIO_ACTIVE_HIGH>;
-	status = "okay";
+	status = "disabled";
 };
 
 &dp0_in_vp2 {
 	status = "okay";
 };
+
+
+&dsi0 {
+	status = "disabled";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi0_out_lt9211: endpoint {
+				remote-endpoint = <&lt9211_dsi_in>;
+			};
+		};
+	};
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
 
 &gpu_panthor {
 	mali-supply = <&vdd_gpu_s0>;
@@ -917,7 +993,39 @@
 		};
 	};
 
-	
+	bridge_dsi: bridge_dsi@2d {
+		compatible = "lontium,lt9211";
+		reg = <0x2d>;
+		vccio-supply = <&vcc_lvds>;
+		interrupts-extended = <&exp 2 IRQ_TYPE_EDGE_FALLING>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* MIPI-DSI RX, порт A LT9211 */
+			port@0 {
+				reg = <0>;
+
+				lt9211_dsi_in: endpoint {
+					data-lanes = <1 2 3 4>;
+					remote-endpoint =
+						<&dsi0_out_lt9211>;
+				};
+			};
+
+			/* LVDS TX, канал A LT9211 */
+			port@2 {
+				reg = <2>;
+
+				lt9211_lvds_out: endpoint {
+					remote-endpoint =
+						<&panel_lvds_in>;
+				};
+			};
+		};
+	};
 };
 
 &i2c5 {
@@ -1186,6 +1294,13 @@
 	status = "okay";
 };
 
+
+&pwm6 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm6m1_pins>;
+	status = "okay";
+};
+
 &rknpu {
 	rknpu-supply = <&vdd_npu_s0>;
 	mem-supply = <&vdd_npu_mem_s0>;
@@ -1193,6 +1308,11 @@
 };
 
 &rknpu_mmu {
+	status = "okay";
+};
+
+
+&route_dsi0 {
 	status = "okay";
 };
 
@@ -1410,12 +1530,18 @@
 };
 
 &uart6 {
-	pinctrl-0 = <&uart6m1_xfer &uart6m1_ctsn &uart6m1_rtsn>;
+	/delete-property/ dmas;
+    /delete-property/ dma-names;
+	
+	pinctrl-0 = <&uart6m1_xfer>;
 	status = "okay";
 };
 
 &uart9 {
-	pinctrl-0 = <&uart9m2_xfer &uart9m2_ctsn &uart9m2_rtsn>;
+	/delete-property/ dmas;
+    /delete-property/ dma-names;
+
+	pinctrl-0 = <&uart9m2_xfer>;
 	status = "okay";
 };
 
@@ -1594,11 +1720,31 @@
 				// <3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;	/* GPIO_EXP_RESET */
 		};
 	};
+	lcd {
+		backlight_pins: backlight-pins {
+			rockchip,pins =
+				<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_BL_EN */
+		};
+		lvds_vcc_pins: lvds-vcc-pins {
+			rockchip,pins =
+				<0 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>;	/* LVDS_PWR_EN */
+		};
 
+		lcd_vcc_pins: lcd-vcc-pins {
+			rockchip,pins =
+				<1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_PWR_EN */
+		};
+
+		lcd_pins: lcd-pins {
+			rockchip,pins =
+				<3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCD_RESET */
+				<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_nSTBYB */
+		};
+	};
 	mux {
 		mux_pins: mux-pins {
 			rockchip,pins =
-				<1 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;		/* CAM_I2C_MUX_RST */
+				<0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>;		/* CAM_I2C_MUX_RST */
 		};
 	};
 
