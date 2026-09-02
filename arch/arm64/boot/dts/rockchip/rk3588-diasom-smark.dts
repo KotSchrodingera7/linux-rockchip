@@ -295,16 +295,17 @@
 		};
 	};
 
-	// backlight: backlight {
-	// 	compatible = "pwm-backlight";
-	// 	pinctrl-names = "default";
-	// 	pinctrl-0 = <&backlight_pins>;
-	// 	pwms = <&pwm6 0 1000 0>;
-	// 	brightness-levels = <0 255>;
-	// 	num-interpolated-steps = <256>;
-	// 	default-brightness-level = <100>;
-	// 	enable-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
-	// };
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&backlight_pins>;
+		pwms = <&pwm13 0 1000 0>;
+		brightness-levels = <0 255>;
+		num-interpolated-steps = <256>;
+		default-brightness-level = <100>;
+		enable-gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+	};
 
 	panel_lvds: panel-lvds {
 		compatible = "panel-lvds";
@@ -315,28 +316,27 @@
 		height-mm = <86>;
 
 		power-supply = <&vcc_lcd>;
-		// backlight = <&backlight>;
+		backlight = <&backlight>;
 
 		enable-gpios = <&gpio3 RK_PA4 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio3 RK_PA3 GPIO_ACTIVE_LOW>;
 
 		panel-timing {
-			clock-frequency = <148500000>;
+			clock-frequency = <94118400>;
 
 			hactive = <1920>;
-			hfront-porch = <88>;
-			hsync-len = <44>;
-			hback-porch = <148>;
+			hfront-porch = <112>;
+			hsync-len = <24>;
+			hback-porch = <8>;
 
 			vactive = <720>;
-			vfront-porch = <4>;
-			vsync-len = <5>;
-			vback-porch = <36>;
+			vfront-porch = <16>;
+			vsync-len = <3>;
+			vback-porch = <21>;
 
-			hsync-active = <1>;
-			vsync-active = <1>;
+			hsync-active = <0>;
+			vsync-active = <0>;
 			de-active = <1>;
-			pixelclk-active = <0>;
 		};
 
 		port {
@@ -426,7 +426,7 @@
 };
 
 &csi2_dphy0 {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -459,7 +459,7 @@
 
 
 &csi2_dphy1 {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -491,11 +491,11 @@
 };
 
 &csi2_dphy0_hw {
-	status = "okay";
+	status = "disabled";
 };
 
 &csi2_dphy1_hw {
-	status = "okay";
+	status = "disabled";
 };
 
 &display_subsystem {
@@ -530,7 +530,7 @@
 
 
 &dsi0 {
-	status = "disabled";
+	status = "okay";
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -545,7 +545,7 @@
 };
 
 &dsi0_in_vp3 {
-	status = "disabled";
+	status = "okay";
 };
 
 
@@ -568,7 +568,7 @@
 };
 
 &hdmi1 {
-	status = "okay";
+	status = "disabled";
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim0_tx1_hpd>;
     cec-enable = "true";
@@ -994,11 +994,11 @@
 	};
 
 	bridge_dsi: bridge_dsi@2d {
-		compatible = "lontium,lt9211";
+		compatible = "lontium,lt9211d";
 		reg = <0x2d>;
 		vccio-supply = <&vcc_lvds>;
 		interrupts-extended = <&exp 2 IRQ_TYPE_EDGE_FALLING>;
-		status = "disabled";
+		status = "okay";
 
 		ports {
 			#address-cells = <1>;
@@ -1296,8 +1296,12 @@
 
 
 &pwm6 {
-	pinctrl-names = "default";
 	pinctrl-0 = <&pwm6m1_pins>;
+	status = "okay";
+};
+
+&pwm13 {
+	pinctrl-0 = <&pwm13m1_pins>;
 	status = "okay";
 };
 
@@ -1723,7 +1727,7 @@
 	lcd {
 		backlight_pins: backlight-pins {
 			rockchip,pins =
-				<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_BL_EN */
+				<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCD_BL_EN */
 		};
 		lvds_vcc_pins: lvds-vcc-pins {
 			rockchip,pins =
