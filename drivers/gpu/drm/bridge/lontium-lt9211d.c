@@ -1,0 +1,354 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Lontium LT9211D bridge driver (minimal bring-up)
+ *
+ * LT9211D: MIPI DSI -> dual-channel LVDS.
+ * This file provides I2C/regmap/DRM/DSI infrastructure only.
+ * MIPI RX, timing, PLL/PCR and LVDS TX setup come later.
+ */
+
+#include <linux/delay.h>
+#include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
+#include <linux/media-bus-format.h>
+#include <linux/module.h>
+#include <linux/of_graph.h>
+#include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
+
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
+
+#define REG_PAGE_CONTROL	0xff
+#define REG_CHIPID0		0x8100
+#define REG_CHIPID1		0x8101
+#define REG_CHIPID2		0x8102
+
+struct lt9211d {
+	struct drm_bridge	bridge;
+	struct device		*dev;
+	struct regmap		*regmap;
+	struct mipi_dsi_device	*dsi;
+	struct drm_bridge	*panel_bridge;
+	struct gpio_desc	*reset_gpio;
+	struct regulator	*vccio;
+};
+
+static const struct regmap_range lt9211d_rw_ranges[] = {
+	regmap_reg_range(REG_PAGE_CONTROL, REG_PAGE_CONTROL),
+	regmap_reg_range(REG_CHIPID0, REG_CHIPID2),
+};
+
+static const struct regmap_access_table lt9211d_rw_table = {
+	.yes_ranges = lt9211d_rw_ranges,
+	.n_yes_ranges = ARRAY_SIZE(lt9211d_rw_ranges),
+};
+
+static const struct regmap_range_cfg lt9211d_range = {
+	.name = "lt9211d",
+	.range_min = 0x0000,
+	.range_max = REG_CHIPID2,
+	.selector_reg = REG_PAGE_CONTROL,
+	.selector_mask = 0xff,
+	.selector_shift = 0,
+	.window_start = 0,
+	.window_len = 0x100,
+};
+
+static const struct regmap_config lt9211d_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.rd_table = &lt9211d_rw_table,
+	.wr_table = &lt9211d_rw_table,
+	.volatile_table = &lt9211d_rw_table,
+	.ranges = &lt9211d_range,
+	.num_ranges = 1,
+	.cache_type = REGCACHE_RBTREE,
+	.max_register = REG_CHIPID2,
+};
+
+static struct lt9211d *bridge_to_lt9211d(struct drm_bridge *bridge)
+{
+	return container_of(bridge, struct lt9211d, bridge);
+}
+
+/* Vendor: Mod_LT9211D_Reset() */
+static void lt9211d_reset(struct lt9211d *ctx)
+{
+	if (!ctx->reset_gpio)
+		return;
+
+	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+	msleep(100);
+	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+	msleep(100);
+}
+
+/* Vendor: Mod_ChipID_Read() — bank 0x81, regs 0x00..0x02 */
+static int lt9211d_read_chipid(struct lt9211d *ctx)
+{
+	u8 chipid[3];
+	int ret;
+
+	ret = regmap_bulk_read(ctx->regmap, REG_CHIPID0, chipid, 3);
+	if (ret < 0) {
+		dev_err(ctx->dev, "failed to read chip ID: %d\n", ret);
+		return ret;
+	}
+
+	dev_info(ctx->dev, "LT9211D chip ID: %02x %02x %02x\n",
+		 chipid[0], chipid[1], chipid[2]);
+	return 0;
+}
+
+static int lt9211d_bridge_attach(struct drm_bridge *bridge,
+				 enum drm_bridge_attach_flags flags)
+{
+	struct lt9211d *ctx = bridge_to_lt9211d(bridge);
+
+	return drm_bridge_attach(bridge->encoder, ctx->panel_bridge,
+				 &ctx->bridge, flags);
+}
+
+static void lt9211d_atomic_enable(struct drm_bridge *bridge,
+				  struct drm_bridge_state *old_bridge_state)
+{
+	struct lt9211d *ctx = bridge_to_lt9211d(bridge);
+	int ret;
+
+	ret = regulator_enable(ctx->vccio);
+	if (ret) {
+		dev_err(ctx->dev, "failed to enable vccio: %d\n", ret);
+		return;
+	}
+
+	lt9211d_reset(ctx);
+	
+	if (!ctx->reset_gpio)
+		msleep(100);
+
+	ret = lt9211d_read_chipid(ctx);
+	if (ret) {
+		int err = regulator_disable(ctx->vccio);
+
+		if (err)
+			dev_err(ctx->dev,
+				"failed to disable vccio after chip ID error: %d\n",
+				err);
+		return;
+	}
+
+	dev_info(ctx->dev, "LT9211D bridge enabled\n");
+}
+
+static void lt9211d_atomic_disable(struct drm_bridge *bridge,
+				   struct drm_bridge_state *old_bridge_state)
+{
+	struct lt9211d *ctx = bridge_to_lt9211d(bridge);
+	int ret;
+
+	if (ctx->reset_gpio) {
+		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
+		msleep(10);
+	}
+
+	ret = regulator_disable(ctx->vccio);
+	if (ret)
+		dev_err(ctx->dev, "failed to disable vccio: %d\n", ret);
+
+	regcache_mark_dirty(ctx->regmap);
+}
+
+#define LT9211D_MAX_INPUT_SEL_FORMATS	1
+
+static u32 *
+lt9211d_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
+				  struct drm_bridge_state *bridge_state,
+				  struct drm_crtc_state *crtc_state,
+				  struct drm_connector_state *conn_state,
+				  u32 output_fmt,
+				  unsigned int *num_input_fmts)
+{
+	u32 *input_fmts;
+
+	*num_input_fmts = 0;
+
+	input_fmts = kcalloc(LT9211D_MAX_INPUT_SEL_FORMATS, sizeof(*input_fmts),
+			     GFP_KERNEL);
+	if (!input_fmts)
+		return NULL;
+
+	input_fmts[0] = MEDIA_BUS_FMT_RGB888_1X24;
+	*num_input_fmts = 1;
+
+	return input_fmts;
+}
+
+static const struct drm_bridge_funcs lt9211d_bridge_funcs = {
+	.attach = lt9211d_bridge_attach,
+	.atomic_enable = lt9211d_atomic_enable,
+	.atomic_disable = lt9211d_atomic_disable,
+	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
+	.atomic_get_input_bus_fmts = lt9211d_atomic_get_input_bus_fmts,
+	.atomic_reset = drm_atomic_helper_bridge_reset,
+};
+
+static int lt9211d_parse_dt(struct lt9211d *ctx)
+{
+	struct drm_bridge *panel_bridge;
+	struct drm_panel *panel;
+	struct device *dev = ctx->dev;
+	int ret;
+
+	ctx->vccio = devm_regulator_get(dev, "vccio");
+	if (IS_ERR(ctx->vccio))
+		return dev_err_probe(dev, PTR_ERR(ctx->vccio),
+				     "failed to get supply 'vccio'\n");
+
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 2, 0,
+					  &panel, &panel_bridge);
+	if (ret < 0)
+		return ret;
+
+	if (panel) {
+		panel_bridge = devm_drm_panel_bridge_add(dev, panel);
+		if (IS_ERR(panel_bridge))
+			return PTR_ERR(panel_bridge);
+	}
+
+	ctx->panel_bridge = panel_bridge;
+	return 0;
+}
+
+static int lt9211d_host_attach(struct lt9211d *ctx)
+{
+	const struct mipi_dsi_device_info info = {
+		.type = "lt9211d",
+		.channel = 0,
+		.node = NULL,
+	};
+	struct device *dev = ctx->dev;
+	struct device_node *host_node;
+	struct device_node *endpoint;
+	struct mipi_dsi_device *dsi;
+	struct mipi_dsi_host *host;
+	int dsi_lanes;
+	int ret;
+
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
+	if (!endpoint)
+		return -ENODEV;
+
+	dsi_lanes = drm_of_get_data_lanes_count(endpoint, 1, 4);
+	host_node = of_graph_get_remote_port_parent(endpoint);
+	host = of_find_mipi_dsi_host_by_node(host_node);
+	of_node_put(host_node);
+	of_node_put(endpoint);
+
+	if (!host)
+		return -EPROBE_DEFER;
+
+	if (dsi_lanes < 0)
+		return dsi_lanes;
+
+	dsi = devm_mipi_dsi_device_register_full(dev, host, &info);
+	if (IS_ERR(dsi))
+		return dev_err_probe(dev, PTR_ERR(dsi),
+				     "failed to create dsi device\n");
+
+	ctx->dsi = dsi;
+	dsi->lanes = dsi_lanes;
+	dsi->format = MIPI_DSI_FMT_RGB888;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
+			  MIPI_DSI_MODE_VIDEO_HSE;
+
+	ret = devm_mipi_dsi_attach(dev, dsi);
+	if (ret < 0) {
+		dev_err(dev, "failed to attach dsi to host: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int lt9211d_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
+{
+	struct device *dev = &client->dev;
+	struct lt9211d *ctx;
+	int ret;
+
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+
+	ctx->dev = dev;
+
+	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
+	if (IS_ERR(ctx->reset_gpio))
+		return PTR_ERR(ctx->reset_gpio);
+
+
+	ret = lt9211d_parse_dt(ctx);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to parse DT\n");
+
+	ctx->regmap = devm_regmap_init_i2c(client, &lt9211d_regmap_config);
+	if (IS_ERR(ctx->regmap))
+		return PTR_ERR(ctx->regmap);
+
+	dev_set_drvdata(dev, ctx);
+	i2c_set_clientdata(client, ctx);
+
+	ctx->bridge.funcs = &lt9211d_bridge_funcs;
+	ctx->bridge.of_node = dev->of_node;
+	drm_bridge_add(&ctx->bridge);
+
+	ret = lt9211d_host_attach(ctx);
+	if (ret) {
+		drm_bridge_remove(&ctx->bridge);
+		return dev_err_probe(dev, ret, "failed to attach to DSI host\n");
+	}
+
+	dev_info(dev, "LT9211D bridge probed\n");
+	return 0;
+}
+
+static void lt9211d_remove(struct i2c_client *client)
+{
+	struct lt9211d *ctx = i2c_get_clientdata(client);
+
+	drm_bridge_remove(&ctx->bridge);
+}
+
+static const struct i2c_device_id lt9211d_id[] = {
+	{ "lt9211d", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lt9211d_id);
+
+static const struct of_device_id lt9211d_of_match[] = {
+	{ .compatible = "lontium,lt9211d" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, lt9211d_of_match);
+
+static struct i2c_driver lt9211d_driver = {
+	.probe = lt9211d_probe,
+	.remove = lt9211d_remove,
+	.id_table = lt9211d_id,
+	.driver = {
+		.name = "lt9211d",
+		.of_match_table = lt9211d_of_match,
+	},
+};
+module_i2c_driver(lt9211d_driver);
+
+MODULE_AUTHOR("DIASOM");
+MODULE_DESCRIPTION("Lontium LT9211D MIPI DSI to LVDS bridge driver");
+MODULE_LICENSE("GPL");
