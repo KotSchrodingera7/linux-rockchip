@@ -64,6 +64,9 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(0xd021, 0xd021),
 	/* Video Check reset/latch */
 	regmap_reg_range(0x810b, 0x810b),
+	/* MIPI RX video timing */
+	regmap_reg_range(0xd00d, 0xd01a),
+	regmap_reg_range(0xd04c, 0xd04c),
 	/* Frame rate diagnostics */
 	regmap_reg_range(0x8643, 0x8645),
 	/* Frequency meter */
@@ -508,6 +511,59 @@ static void lt9211d_dump_mipi_rx(struct lt9211d *ctx)
 		dev_warn(ctx->dev, "MIPI RX frametime not available\n");
 }
 
+/* Vendor: Drv_MipiRx_VidTiming_Set() */
+static int lt9211d_mipi_rx_timing_set(struct lt9211d *ctx,
+				      const struct drm_display_mode *mode)
+{
+	u16 hact = mode->hdisplay;
+	u16 htotal = mode->htotal;
+	u16 hfp = mode->hsync_start - mode->hdisplay;
+	u16 hs = mode->hsync_end - mode->hsync_start;
+	u16 hbp = mode->htotal - mode->hsync_end;
+	u16 vact = mode->vdisplay;
+	u16 vtotal = mode->vtotal;
+	u16 vfp = mode->vsync_start - mode->vdisplay;
+	u16 vs = mode->vsync_end - mode->vsync_start;
+	u16 vbp = mode->vtotal - mode->vsync_end;
+	struct reg_sequence seq[] = {
+		{ 0xd00d, (vtotal >> 8) & 0xff },
+		{ 0xd00e, vtotal & 0xff },
+
+		{ 0xd00f, (vact >> 8) & 0xff },
+		{ 0xd010, vact & 0xff },
+
+		{ 0xd015, vs & 0xff },
+
+		{ 0xd017, (vfp >> 8) & 0xff },
+		{ 0xd018, vfp & 0xff },
+
+		{ 0xd011, (htotal >> 8) & 0xff },
+		{ 0xd012, htotal & 0xff },
+
+		{ 0xd013, (hact >> 8) & 0xff },
+		{ 0xd014, hact & 0xff },
+
+		{ 0xd04c, (hs >> 8) & 0xff },
+		{ 0xd016, hs & 0xff },
+
+		{ 0xd019, (hfp >> 8) & 0xff },
+		{ 0xd01a, hfp & 0xff },
+	};
+	int ret;
+
+	dev_info(ctx->dev,
+		 "MIPI RX timing: %ux%u htotal=%u vtotal=%u hfp=%u hs=%u hbp=%u vfp=%u vs=%u vbp=%u clock=%dkHz\n",
+		 hact, vact, htotal, vtotal, hfp, hs, hbp, vfp, vs, vbp,
+		 mode->clock);
+
+	ret = regmap_multi_reg_write(ctx->regmap, seq, ARRAY_SIZE(seq));
+	if (ret)
+		dev_err(ctx->dev, "failed to program MIPI RX timing: %d\n",
+			ret);
+
+	return ret;
+}
+
 static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -520,8 +576,37 @@ static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 				  struct drm_bridge_state *old_bridge_state)
 {
+	struct drm_atomic_state *state = old_bridge_state->base.state;
 	struct lt9211d *ctx = bridge_to_lt9211d(bridge);
+	struct drm_crtc_state *crtc_state;
+	struct drm_connector_state *connector_state;
+	struct drm_connector *connector;
+	const struct drm_display_mode *mode;
+	struct drm_crtc *crtc;
 	int ret;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state,
+							      bridge->encoder);
+	if (!connector) {
+		dev_err(ctx->dev, "failed to get connector for encoder\n");
+		return;
+	}
+
+	connector_state = drm_atomic_get_new_connector_state(state, connector);
+	if (!connector_state || !connector_state->crtc) {
+		dev_err(ctx->dev, "failed to get connector CRTC state\n");
+		return;
+	}
+
+	crtc = connector_state->crtc;
+
+	crtc_state = drm_atomic_get_new_crtc_state(state, crtc);
+	if (!crtc_state) {
+		dev_err(ctx->dev, "failed to get CRTC state\n");
+		return;
+	}
+
+	mode = &crtc_state->adjusted_mode;
 
 	ret = regulator_enable(ctx->vccio);
 	if (ret) {
@@ -567,6 +652,11 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 	if (ret)
 		dev_warn(ctx->dev,
 			 "failed to configure MIPI RX HS settle: %d\n", ret);
+
+	ret = lt9211d_mipi_rx_timing_set(ctx, mode);
+	if (ret)
+		dev_warn(ctx->dev,
+			 "failed to configure MIPI RX timing: %d\n", ret);
 
 	lt9211d_dump_mipi_rx(ctx);
 
