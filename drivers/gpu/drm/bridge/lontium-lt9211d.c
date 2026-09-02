@@ -354,6 +354,27 @@ static int lt9211d_configure_mipi_rx(struct lt9211d *ctx)
 	return lt9211d_mipi_rx_lane_set(ctx);
 }
 
+/* Vendor: Drv_MipiRx_HsSettleSet(), based on lane0 SetNum */
+static int lt9211d_mipi_rx_hs_settle(struct lt9211d *ctx)
+{
+	unsigned int lane0_set_num;
+	u8 settle;
+	int ret;
+
+	ret = regmap_read(ctx->regmap, 0xd088, &lane0_set_num);
+	if (ret)
+		return ret;
+
+	if (lane0_set_num > 0x10 && lane0_set_num < 0x50)
+		settle = lane0_set_num - 5;
+	else
+		settle = 0x08;
+
+	dev_info(ctx->dev, "MIPI RX HS settle=0x%02x\n", settle);
+
+	return regmap_write(ctx->regmap, 0xd002, settle);
+}
+
 #define LT9211D_FM_SRC_MLRXA_BYTE_CLK	0x18
 
 /* Vendor: Drv_System_FmClkGet() */
@@ -541,6 +562,12 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 	dev_info(ctx->dev, "LT9211D MIPI RX configured\n");
 
 	msleep(100);
+
+	ret = lt9211d_mipi_rx_hs_settle(ctx);
+	if (ret)
+		dev_warn(ctx->dev,
+			 "failed to configure MIPI RX HS settle: %d\n", ret);
+
 	lt9211d_dump_mipi_rx(ctx);
 
 	dev_info(ctx->dev, "LT9211D bridge enabled\n");
