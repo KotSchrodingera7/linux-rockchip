@@ -7,6 +7,7 @@
  * MIPI RX, timing, PLL/PCR and LVDS TX setup come later.
  */
 
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -41,6 +42,25 @@ struct lt9211d {
 static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(REG_PAGE_CONTROL, REG_PAGE_CONTROL),
 	regmap_reg_range(REG_CHIPID0, REG_CHIPID2),
+	/* MIPI RX D-PHY reset */
+	regmap_reg_range(0x8109, 0x8109),
+	/* System clock routing / video check source select */
+	regmap_reg_range(0x8180, 0x8181),
+	/* MIPI RX PHY power-on */
+	regmap_reg_range(0x8201, 0x8209),
+	regmap_reg_range(0x8213, 0x8213),
+	regmap_reg_range(0x8218, 0x8218),
+	/* Active RX source select */
+	regmap_reg_range(0x8530, 0x8530),
+	/* MIPI RX lane mapping */
+	regmap_reg_range(0x853f, 0x8549),
+	regmap_reg_range(0x85e9, 0x85e9),
+	regmap_reg_range(0x8632, 0x8632),
+	regmap_reg_range(0x863f, 0x863f),
+	/* MIPI RX PHY lane count / power-on / input select */
+	regmap_reg_range(0xd000, 0xd005),
+	regmap_reg_range(0xd00a, 0xd00b),
+	regmap_reg_range(0xd021, 0xd021),
 };
 
 static const struct regmap_access_table lt9211d_rw_table = {
@@ -51,7 +71,7 @@ static const struct regmap_access_table lt9211d_rw_table = {
 static const struct regmap_range_cfg lt9211d_range = {
 	.name = "lt9211d",
 	.range_min = 0x0000,
-	.range_max = REG_CHIPID2,
+	.range_max = 0xd0ff,
 	.selector_reg = REG_PAGE_CONTROL,
 	.selector_mask = 0xff,
 	.selector_shift = 0,
@@ -68,7 +88,7 @@ static const struct regmap_config lt9211d_regmap_config = {
 	.ranges = &lt9211d_range,
 	.num_ranges = 1,
 	.cache_type = REGCACHE_RBTREE,
-	.max_register = REG_CHIPID2,
+	.max_register = 0xd0ff,
 };
 
 static struct lt9211d *bridge_to_lt9211d(struct drm_bridge *bridge)
@@ -105,6 +125,224 @@ static int lt9211d_read_chipid(struct lt9211d *ctx)
 	return 0;
 }
 
+/* Vendor: Drv_MipiRx_PhyPowerOn(), PORTA, non-burst */
+static const struct reg_sequence lt9211d_mipi_rx_phy_82_seq[] = {
+	{ 0x8201, 0x11 },
+	{ 0x8218, 0x48 },
+	{ 0x8201, 0x91 },
+	{ 0x8202, 0x00 },
+	{ 0x8203, 0xee },
+	{ 0x8209, 0x21 },
+	{ 0x8204, 0x44 },
+	{ 0x8205, 0xc4 },
+	{ 0x8206, 0x44 },
+	{ 0x8213, 0x0c },
+};
+
+static const struct reg_sequence lt9211d_mipi_rx_phy_d0_seq[] = {
+	{ 0xd001, 0x00 },
+	{ 0xd002, 0x0e },
+	{ 0xd005, 0x00 },
+	{ 0xd00a, 0x59 },
+	{ 0xd00b, 0x20 },
+};
+
+/* D-PHY reset */
+static const struct reg_sequence lt9211d_mipi_rx_phy_reset_seq[] = {
+	{ 0x8109, 0xde },
+	{ 0x8109, 0xdf },
+};
+
+static int lt9211d_mipi_rx_phy_poweron(struct lt9211d *ctx)
+{
+	unsigned int lane_cfg;
+	int ret;
+
+	switch (ctx->dsi->lanes) {
+	case 4:
+		lane_cfg = 0;
+		break;
+	case 1:
+		lane_cfg = 1;
+		break;
+	case 2:
+		lane_cfg = 2;
+		break;
+	case 3:
+		lane_cfg = 3;
+		break;
+	default:
+		dev_err(ctx->dev, "unsupported DSI lane count: %u\n",
+			ctx->dsi->lanes);
+		return -EINVAL;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0xd000, GENMASK(1, 0), lane_cfg);
+	if (ret) {
+		dev_err(ctx->dev, "failed to set MIPI RX lane count: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_mipi_rx_phy_82_seq,
+				     ARRAY_SIZE(lt9211d_mipi_rx_phy_82_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to power on MIPI RX phy: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_mipi_rx_phy_d0_seq,
+				     ARRAY_SIZE(lt9211d_mipi_rx_phy_d0_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to power on MIPI RX phy: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_mipi_rx_phy_reset_seq,
+				     ARRAY_SIZE(lt9211d_mipi_rx_phy_reset_seq));
+	if (ret)
+		dev_err(ctx->dev, "failed to reset MIPI RX D-PHY: %d\n", ret);
+
+	return ret;
+}
+
+/* Vendor: Drv_MipiRxClk_Sel() + Drv_System_VidChkClk_SrcSel(MLRX_BYTE_CLK) */
+static const struct reg_sequence lt9211d_mipi_rx_clk_seq[] = {
+	{ 0x85e9, 0x88 },
+	{ 0x8180, 0x51 },
+	{ 0x8181, 0x10 },
+	{ 0x8632, 0x03 },
+};
+
+static int lt9211d_mipi_rx_clk_sel(struct lt9211d *ctx)
+{
+	int ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_mipi_rx_clk_seq,
+				     ARRAY_SIZE(lt9211d_mipi_rx_clk_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to select MIPI RX clock: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0x8180, GENMASK(1, 0), 0x03);
+	if (ret)
+		dev_err(ctx->dev,
+			"failed to select video check clock source: %d\n",
+			ret);
+
+	return ret;
+}
+
+/* Vendor: Drv_System_VidChk_SrcSel(MIPIDEBUG) */
+static int lt9211d_mipi_rx_vidchk_srcsel(struct lt9211d *ctx)
+{
+	int ret;
+
+	ret = regmap_write(ctx->regmap, 0x863f, 0x05);
+	if (ret)
+		dev_err(ctx->dev,
+			"failed to select video check source: %d\n", ret);
+
+	return ret;
+}
+
+/* Vendor: Drv_SystemActRx_Sel(MIPIRX) */
+static int lt9211d_mipi_rx_actrx_sel(struct lt9211d *ctx)
+{
+	int ret;
+
+	ret = regmap_update_bits(ctx->regmap, 0x8530, GENMASK(2, 0), 0x01);
+	if (ret) {
+		dev_err(ctx->dev, "failed to select active RX source: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0x8530, BIT(4), BIT(4));
+	if (ret)
+		dev_err(ctx->dev, "failed to enable active RX source: %d\n",
+			ret);
+
+	return ret;
+}
+
+/* Vendor: Drv_MipiRx_InputSel(), DSI input */
+static const struct reg_sequence lt9211d_mipi_rx_input_seq[] = {
+	{ 0xd004, 0x00 },
+	{ 0xd021, 0x46 },
+};
+
+static int lt9211d_mipi_rx_input_sel(struct lt9211d *ctx)
+{
+	int ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_mipi_rx_input_seq,
+				     ARRAY_SIZE(lt9211d_mipi_rx_input_seq));
+	if (ret)
+		dev_err(ctx->dev, "failed to select MIPI RX input: %d\n", ret);
+
+	return ret;
+}
+
+/* Vendor: Drv_MipiRx_LaneSet(), PORTA */
+static const struct reg_sequence lt9211d_mipi_rx_lane_seq[] = {
+	{ 0x853f, 0x08 },
+	{ 0x8540, 0x04 },
+	{ 0x8541, 0x03 },
+	{ 0x8542, 0x02 },
+	{ 0x8543, 0x01 },
+	{ 0x8545, 0x04 },
+	{ 0x8546, 0x03 },
+	{ 0x8547, 0x02 },
+	{ 0x8548, 0x01 },
+	{ 0x8544, 0x00 },
+	{ 0x8549, 0x00 },
+};
+
+static int lt9211d_mipi_rx_lane_set(struct lt9211d *ctx)
+{
+	int ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_mipi_rx_lane_seq,
+				     ARRAY_SIZE(lt9211d_mipi_rx_lane_seq));
+	if (ret)
+		dev_err(ctx->dev, "failed to set MIPI RX lane mapping: %d\n",
+			ret);
+
+	return ret;
+}
+
+/* Vendor state: STATE_CHIPRX_WAIT_SOURCE — MIPI RX init only */
+static int lt9211d_configure_mipi_rx(struct lt9211d *ctx)
+{
+	int ret;
+
+	dev_info(ctx->dev, "LT9211D: configure MIPI RX\n");
+
+	ret = lt9211d_mipi_rx_phy_poweron(ctx);
+	if (ret)
+		return ret;
+
+	ret = lt9211d_mipi_rx_clk_sel(ctx);
+	if (ret)
+		return ret;
+
+	ret = lt9211d_mipi_rx_vidchk_srcsel(ctx);
+	if (ret)
+		return ret;
+
+	ret = lt9211d_mipi_rx_actrx_sel(ctx);
+	if (ret)
+		return ret;
+
+	ret = lt9211d_mipi_rx_input_sel(ctx);
+	if (ret)
+		return ret;
+
+	return lt9211d_mipi_rx_lane_set(ctx);
+}
+
 static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -127,7 +365,7 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	lt9211d_reset(ctx);
-	
+
 	if (!ctx->reset_gpio)
 		msleep(100);
 
@@ -141,6 +379,22 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 				err);
 		return;
 	}
+
+	ret = lt9211d_configure_mipi_rx(ctx);
+	if (ret) {
+		int err;
+
+		dev_err(ctx->dev, "failed to configure MIPI RX: %d\n", ret);
+
+		err = regulator_disable(ctx->vccio);
+		if (err)
+			dev_err(ctx->dev,
+				"failed to disable vccio after MIPI RX config error: %d\n",
+				err);
+		return;
+	}
+
+	dev_info(ctx->dev, "LT9211D MIPI RX configured\n");
 
 	dev_info(ctx->dev, "LT9211D bridge enabled\n");
 }
