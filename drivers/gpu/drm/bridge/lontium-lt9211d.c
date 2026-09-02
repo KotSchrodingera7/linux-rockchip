@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/kernel.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
@@ -61,6 +62,16 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(0xd000, 0xd005),
 	regmap_reg_range(0xd00a, 0xd00b),
 	regmap_reg_range(0xd021, 0xd021),
+	/* Video Check reset/latch */
+	regmap_reg_range(0x810b, 0x810b),
+	/* Frame rate diagnostics */
+	regmap_reg_range(0x8643, 0x8645),
+	/* Frequency meter */
+	regmap_reg_range(0x8690, 0x8690),
+	regmap_reg_range(0x8698, 0x869a),
+	/* MIPI RX video parameters / SOT diagnostics */
+	regmap_reg_range(0xd082, 0xd08f),
+	regmap_reg_range(0xd09c, 0xd09c),
 };
 
 static const struct regmap_access_table lt9211d_rw_table = {
@@ -343,6 +354,139 @@ static int lt9211d_configure_mipi_rx(struct lt9211d *ctx)
 	return lt9211d_mipi_rx_lane_set(ctx);
 }
 
+#define LT9211D_FM_SRC_MLRXA_BYTE_CLK	0x18
+
+/* Vendor: Drv_System_FmClkGet() */
+static int lt9211d_fm_clk_get(struct lt9211d *ctx, u8 src, u32 *val)
+{
+	unsigned int status;
+	u8 fm[3];
+	int ret, cleanup_ret;
+
+	ret = regmap_write(ctx->regmap, 0x8690, src);
+	if (ret)
+		return ret;
+
+	msleep(5);
+
+	ret = regmap_read(ctx->regmap, 0x8698, &status);
+	if (ret)
+		return ret;
+
+	dev_info(ctx->dev, "MIPI RX FM status=0x%02x (%s)\n", status,
+		 (status & 0x60) == 0x60 ? "stable" : "unstable");
+
+	ret = regmap_write(ctx->regmap, 0x8690, src | BIT(7));
+	if (ret)
+		return ret;
+
+	ret = regmap_bulk_read(ctx->regmap, 0x8698, fm, sizeof(fm));
+	if (!ret)
+		*val = ((fm[0] & 0x0f) << 16) | (fm[1] << 8) | fm[2];
+
+	cleanup_ret = regmap_update_bits(ctx->regmap, 0x8690, BIT(7), 0);
+
+	return ret ? ret : cleanup_ret;
+}
+
+/* Vendor: Video Check reset/latch, done before reading frame rate */
+static int lt9211d_vidchk_reset(struct lt9211d *ctx)
+{
+	static const struct reg_sequence seq[] = {
+		{ 0x810b, 0x7f },
+		{ 0x810b, 0xff },
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, seq, ARRAY_SIZE(seq));
+	if (ret)
+		return ret;
+
+	msleep(80);
+
+	return 0;
+}
+
+/* Vendor: diagnostics only — word count, format, VACT, PA_LPN, SOT, FM, frame rate */
+static void lt9211d_dump_mipi_rx(struct lt9211d *ctx)
+{
+	u8 vid[5];
+	u8 sot[8];
+	u8 frt[3];
+	unsigned int pa_lpn;
+	u16 word_count, vact;
+	unsigned int hact;
+	u8 fmt;
+	u32 byte_clk;
+	u32 frametime;
+	int ret;
+
+	/* Vendor: Drv_MipiRx_HactGet() — word count / format / VACT */
+	ret = regmap_bulk_read(ctx->regmap, 0xd082, vid, sizeof(vid));
+	if (ret) {
+		dev_warn(ctx->dev, "failed to read MIPI RX video params: %d\n",
+			 ret);
+		return;
+	}
+
+	ret = regmap_read(ctx->regmap, 0xd09c, &pa_lpn);
+	if (ret) {
+		dev_warn(ctx->dev, "failed to read MIPI RX pa_lpn: %d\n", ret);
+		return;
+	}
+
+	word_count = (vid[0] << 8) | vid[1];
+	fmt = vid[2] & GENMASK(3, 0);
+	vact = (vid[3] << 8) | vid[4];
+	hact = fmt == 0x0a ? word_count / 3 : 0;
+
+	dev_info(ctx->dev,
+		 "MIPI RX: wc=%u fmt=0x%02x hact=%u vact=%u pa_lpn=0x%02x\n",
+		 word_count, fmt, hact, vact, pa_lpn);
+
+	/* Vendor: Drv_MipiRx_SotGet() */
+	ret = regmap_bulk_read(ctx->regmap, 0xd088, sot, sizeof(sot));
+	if (ret) {
+		dev_warn(ctx->dev, "failed to read MIPI RX SOT: %d\n", ret);
+		return;
+	}
+
+	dev_info(ctx->dev,
+		 "MIPI RX SOT: num=%02x %02x %02x %02x data=%02x %02x %02x %02x\n",
+		 sot[0], sot[2], sot[4], sot[6],
+		 sot[1], sot[3], sot[5], sot[7]);
+
+	ret = lt9211d_fm_clk_get(ctx, LT9211D_FM_SRC_MLRXA_BYTE_CLK, &byte_clk);
+	if (ret) {
+		dev_warn(ctx->dev,
+			 "failed to read MIPI RX PortA byte clock: %d\n", ret);
+		return;
+	}
+
+	dev_info(ctx->dev, "MIPI RX PortA byte clock=%u\n", byte_clk);
+
+	ret = lt9211d_vidchk_reset(ctx);
+	if (ret) {
+		dev_warn(ctx->dev, "failed to reset video check: %d\n", ret);
+		return;
+	}
+
+	/* Vendor: Drv_VidChk_FrmRt_Get() */
+	ret = regmap_bulk_read(ctx->regmap, 0x8643, frt, sizeof(frt));
+	if (ret) {
+		dev_warn(ctx->dev, "failed to read MIPI RX frame rate: %d\n",
+			 ret);
+		return;
+	}
+
+	frametime = (frt[0] << 16) | (frt[1] << 8) | frt[2];
+	if (frametime)
+		dev_info(ctx->dev, "MIPI RX frametime=%u fps=%u\n", frametime,
+			 DIV_ROUND_CLOSEST(25000000, frametime));
+	else
+		dev_warn(ctx->dev, "MIPI RX frametime not available\n");
+}
+
 static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -395,6 +539,9 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	dev_info(ctx->dev, "LT9211D MIPI RX configured\n");
+
+	msleep(100);
+	lt9211d_dump_mipi_rx(ctx);
 
 	dev_info(ctx->dev, "LT9211D bridge enabled\n");
 }
