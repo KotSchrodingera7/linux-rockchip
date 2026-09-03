@@ -73,6 +73,14 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(0xd026, 0xd029),
 	regmap_reg_range(0xd02d, 0xd02d),
 	regmap_reg_range(0xd031, 0xd031),
+	/* PCR calibration (MIPI DSI) */
+	regmap_reg_range(0xd00c, 0xd00c),
+	regmap_reg_range(0xd01b, 0xd01e),
+	regmap_reg_range(0xd022, 0xd025),
+	regmap_reg_range(0xd02a, 0xd02b),
+	regmap_reg_range(0xd038, 0xd03b),
+	regmap_reg_range(0xd03f, 0xd042),
+	regmap_reg_range(0xd094, 0xd094),
 	/* Video Check reset/latch */
 	regmap_reg_range(0x810b, 0x810b),
 	/* MIPI RX video timing */
@@ -699,6 +707,111 @@ static int lt9211d_mipi_rx_dessc_pll_set(struct lt9211d *ctx,
 	return ret;
 }
 
+/* Vendor: Drv_MipiRx_PcrCali(), MIPI_DSI branch */
+static int lt9211d_mipi_rx_pcr_calibrate(struct lt9211d *ctx,
+					 const struct drm_display_mode *mode)
+{
+	static const struct reg_sequence pcr_seq[] = {
+		{ 0xd01e, 0x51 },
+		{ 0xd023, 0x80 },
+		{ 0xd024, 0x70 },
+		{ 0xd025, 0x80 },
+		{ 0xd02a, 0x10 },
+		{ 0xd021, 0x4f },
+		{ 0xd022, 0xf0 },
+
+		{ 0xd038, 0x04 },
+		{ 0xd039, 0x08 },
+		{ 0xd03a, 0x10 },
+		{ 0xd03b, 0x20 },
+
+		{ 0xd03f, 0x04 },
+		{ 0xd040, 0x08 },
+		{ 0xd041, 0x10 },
+		{ 0xd042, 0x20 },
+
+		{ 0xd02b, 0xa0 },
+	};
+	static const struct reg_sequence pcr_reset_seq[] = {
+		{ 0x8109, 0xdb },
+		{ 0x8109, 0xdf },
+		{ 0xd008, 0x80 },
+		{ 0xd008, 0x00 },
+	};
+	unsigned int pclk_khz = mode->clock;
+	unsigned int status = 0, m = 0;
+	unsigned int i;
+	u8 delay_val = pclk_khz < 44000 ? 0x60 : 0x40;
+	struct reg_sequence delay_seq[] = {
+		{ 0xd00c, delay_val },
+		{ 0xd01b, 0x00 },
+		{ 0xd01c, delay_val },
+	};
+	int ret;
+
+	ret = regmap_update_bits(ctx->regmap, 0xd00a, GENMASK(7, 4), 0);
+	if (ret) {
+		dev_err(ctx->dev, "failed to clear MIPI RX PCR mode bits: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, pcr_seq, ARRAY_SIZE(pcr_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to program MIPI RX PCR: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, delay_seq,
+				     ARRAY_SIZE(delay_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to program MIPI RX PCR delay: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, pcr_reset_seq,
+				     ARRAY_SIZE(pcr_reset_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to reset MIPI RX PCR: %d\n", ret);
+		return ret;
+	}
+
+	msleep(10);
+
+	for (i = 0; i < 200; i++) {
+		msleep(100);
+
+		ret = regmap_read(ctx->regmap, 0xd087, &status);
+		if (ret)
+			return ret;
+
+		ret = regmap_read(ctx->regmap, 0xd094, &m);
+		if (ret)
+			return ret;
+
+		if ((status & 0x18) == 0x18)
+			break;
+
+		dev_dbg(ctx->dev,
+			"MIPI RX PCR unstable: status=0x%02x M=0x%02x\n",
+			status, m & 0x7f);
+	}
+
+	if ((status & 0x18) != 0x18) {
+		dev_err(ctx->dev,
+			"MIPI RX PCR failed to lock: status=0x%02x M=0x%02x\n",
+			status, m & 0x7f);
+		return -ETIMEDOUT;
+	}
+
+	dev_info(ctx->dev,
+		 "MIPI RX PCR locked: status=0x%02x M=0x%02x attempts=%u\n",
+		 status, m & 0x7f, i + 1);
+
+	return 0;
+}
+
 static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -794,9 +907,34 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 			 "failed to configure MIPI RX timing: %d\n", ret);
 
 	ret = lt9211d_mipi_rx_dessc_pll_set(ctx, mode);
-	if (ret)
-		dev_warn(ctx->dev,
-			 "failed to configure MIPI RX DeSSC PLL: %d\n", ret);
+	if (ret) {
+		int err;
+
+		dev_err(ctx->dev,
+			"failed to configure MIPI RX DeSSC PLL: %d\n", ret);
+
+		err = regulator_disable(ctx->vccio);
+		if (err)
+			dev_err(ctx->dev,
+				"failed to disable vccio after MIPI RX DeSSC PLL error: %d\n",
+				err);
+		return;
+	}
+
+	ret = lt9211d_mipi_rx_pcr_calibrate(ctx, mode);
+	if (ret) {
+		int err;
+
+		dev_err(ctx->dev, "failed to calibrate MIPI RX PCR: %d\n",
+			ret);
+
+		err = regulator_disable(ctx->vccio);
+		if (err)
+			dev_err(ctx->dev,
+				"failed to disable vccio after MIPI RX PCR error: %d\n",
+				err);
+		return;
+	}
 
 	lt9211d_dump_mipi_rx(ctx);
 
