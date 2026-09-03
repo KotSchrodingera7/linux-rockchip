@@ -86,6 +86,8 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	/* MIPI RX video timing */
 	regmap_reg_range(0xd00d, 0xd01a),
 	regmap_reg_range(0xd04c, 0xd04c),
+	/* Video Check stable status */
+	regmap_reg_range(0x8640, 0x8640),
 	/* Frame rate diagnostics */
 	regmap_reg_range(0x8643, 0x8645),
 	/* Frequency meter */
@@ -812,6 +814,42 @@ static int lt9211d_mipi_rx_pcr_calibrate(struct lt9211d *ctx,
 	return 0;
 }
 
+/* Vendor: Drv_System_VidChkClk_SrcSel(DESSCPLL_PIX_CLK) + Drv_System_VidChk_SrcSel(MIPIRX) */
+static int lt9211d_mipi_rx_video_check(struct lt9211d *ctx)
+{
+	unsigned int status;
+	int ret;
+
+	ret = regmap_update_bits(ctx->regmap, 0x8180, GENMASK(1, 0), 0x01);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to select video check clock source: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_write(ctx->regmap, 0x863f, 0x01);
+	if (ret) {
+		dev_err(ctx->dev, "failed to select video check source: %d\n",
+			ret);
+		return ret;
+	}
+
+	msleep(100);
+
+	ret = regmap_read(ctx->regmap, 0x8640, &status);
+	if (ret)
+		return ret;
+
+	dev_info(ctx->dev, "MIPI RX Video Check: status=0x%02x stable=%u\n",
+		 status, !!(status & BIT(0)));
+
+	if (!(status & BIT(0)))
+		dev_warn(ctx->dev, "MIPI RX Video Check not stable\n");
+
+	return 0;
+}
+
 static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -937,6 +975,11 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	lt9211d_dump_mipi_rx(ctx);
+
+	ret = lt9211d_mipi_rx_video_check(ctx);
+	if (ret)
+		dev_warn(ctx->dev,
+			 "failed to check MIPI RX video status: %d\n", ret);
 
 	dev_info(ctx->dev, "LT9211D bridge enabled\n");
 }
