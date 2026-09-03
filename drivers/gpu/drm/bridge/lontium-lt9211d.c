@@ -45,6 +45,8 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(REG_CHIPID0, REG_CHIPID2),
 	/* MIPI RX D-PHY reset */
 	regmap_reg_range(0x8109, 0x8109),
+	/* LVDS TX PHY power-off / SW reset */
+	regmap_reg_range(0x8108, 0x8108),
 	/* System clock routing / video check source select */
 	regmap_reg_range(0x8180, 0x8181),
 	/* MIPI RX PHY power-on */
@@ -57,13 +59,21 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(0x8226, 0x8227),
 	regmap_reg_range(0x822c, 0x822c),
 	regmap_reg_range(0x822f, 0x822f),
-	/* Active RX source select */
+	/* Active RX source select / TX SRAM select */
 	regmap_reg_range(0x8530, 0x8530),
 	/* MIPI RX lane mapping */
 	regmap_reg_range(0x853f, 0x8549),
 	regmap_reg_range(0x85e9, 0x85e9),
 	regmap_reg_range(0x8632, 0x8632),
 	regmap_reg_range(0x863f, 0x863f),
+	/* LVDS TX PHY power-off */
+	regmap_reg_range(0x8236, 0x8237),
+	/* LVDS TX PLL configuration */
+	regmap_reg_range(0x810c, 0x810c),
+	regmap_reg_range(0x8230, 0x8235),
+	regmap_reg_range(0x856f, 0x856f),
+	regmap_reg_range(0x870f, 0x870f),
+	regmap_reg_range(0x8739, 0x8739),
 	/* MIPI RX PHY lane count / power-on / input select */
 	regmap_reg_range(0xd000, 0xd005),
 	regmap_reg_range(0xd00a, 0xd00b),
@@ -399,7 +409,8 @@ static int lt9211d_mipi_rx_hs_settle(struct lt9211d *ctx)
 	return regmap_write(ctx->regmap, 0xd002, settle);
 }
 
-#define LT9211D_FM_SRC_MLRXA_BYTE_CLK	0x18
+#define LT9211D_FM_SRC_MLRXA_BYTE_CLK		0x18
+#define LT9211D_FM_SRC_AD_DESSCPLL_PIX_CLK	0x10
 
 /* Vendor: Drv_System_FmClkGet() */
 static int lt9211d_fm_clk_get(struct lt9211d *ctx, u8 src, u32 *val)
@@ -844,8 +855,256 @@ static int lt9211d_mipi_rx_video_check(struct lt9211d *ctx)
 	dev_info(ctx->dev, "MIPI RX Video Check: status=0x%02x stable=%u\n",
 		 status, !!(status & BIT(0)));
 
-	if (!(status & BIT(0)))
-		dev_warn(ctx->dev, "MIPI RX Video Check not stable\n");
+	if (!(status & BIT(0))) {
+		dev_err(ctx->dev,
+			"MIPI RX Video Check unstable: status=0x%02x\n",
+			status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+/* Vendor: Drv_LVDSTxPhy_PowerOff() */
+static int lt9211d_lvds_tx_phy_power_off(struct lt9211d *ctx)
+{
+	static const struct reg_sequence phy_seq[] = {
+		{ 0x8236, 0x00 },
+		{ 0x8237, 0x00 },
+	};
+	static const struct reg_sequence reset_seq[] = {
+		{ 0x8108, 0x6f },
+		{ 0x8103, 0xbf },
+	};
+	int ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, phy_seq, ARRAY_SIZE(phy_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to power off LVDS TX phy: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, reset_seq, ARRAY_SIZE(reset_seq));
+	if (ret)
+		dev_err(ctx->dev, "failed to power off LVDS TX phy: %d\n",
+			ret);
+
+	return ret;
+}
+
+#define LT9211D_LVDS_TX_PLL_CALI_MAX_ATTEMPTS	3
+
+/*
+ * Vendor: Drv_SystemTxSram_Sel(LVDSTX) + Mod_LvdsTxPll_RefPixClk_Get() +
+ * Drv_LvdsTxPll_RefPixClk_Set() + Drv_LvdsTxPll_Config() (DOU_PORT) +
+ * Drv_LvdsTxPll_Cali() (non-SSC)
+ */
+static int lt9211d_lvds_tx_pll_configure(struct lt9211d *ctx)
+{
+	static const struct reg_sequence cali_reset_seq[] = {
+		{ 0x810c, 0xfe },
+	};
+	static const struct reg_sequence cali_trigger_seq[] = {
+		{ 0x870f, 0x00 },
+		{ 0x870f, 0x01 },
+	};
+	u32 pclk_khz, lvds_phy_clk;
+	unsigned int prediv, sericlk_div, pixclk_div, div_set;
+	unsigned int status = 0, attempts = 0;
+	unsigned int attempt;
+	u8 reg31, reg32, reg33;
+	int ret;
+
+	ret = lt9211d_lvds_tx_phy_power_off(ctx);
+	if (ret)
+		return ret;
+
+	ret = regmap_update_bits(ctx->regmap, 0x8530, GENMASK(7, 6), BIT(6));
+	if (ret) {
+		dev_err(ctx->dev, "failed to select LVDS TX SRAM: %d\n", ret);
+		return ret;
+	}
+
+	ret = lt9211d_fm_clk_get(ctx, LT9211D_FM_SRC_AD_DESSCPLL_PIX_CLK,
+				 &pclk_khz);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to read LVDS TX DeSSC pixel clock: %d\n",
+			ret);
+		return ret;
+	}
+
+	dev_info(ctx->dev, "LVDS TX DeSSC pixel clock=%u\n", pclk_khz);
+
+	ret = regmap_write(ctx->regmap, 0x8230, 0x00);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to set LVDS TX PLL reference clock: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0x856f, BIT(0), BIT(0));
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to set LVDS TX dual-port mode: %d\n", ret);
+		return ret;
+	}
+
+	/* DOU_PORT: lvds_phy_clk = pclk * 7 / 2 */
+	lvds_phy_clk = pclk_khz * 7 / 2;
+
+	if (pclk_khz < 20000) {
+		reg31 = 0x28;
+		prediv = 1;
+	} else if (pclk_khz < 40000) {
+		reg31 = 0x28;
+		prediv = 1;
+	} else if (pclk_khz < 80000) {
+		reg31 = 0x29;
+		prediv = 2;
+	} else if (pclk_khz < 160000) {
+		reg31 = 0x2a;
+		prediv = 4;
+	} else if (pclk_khz < 320000) {
+		reg31 = 0x2b;
+		prediv = 8;
+	} else {
+		reg31 = 0x2f;
+		prediv = 16;
+	}
+
+	ret = regmap_write(ctx->regmap, 0x8231, reg31);
+	if (ret) {
+		dev_err(ctx->dev, "failed to set LVDS TX PLL prediv: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (lvds_phy_clk >= 640000) {
+		reg32 = 0x42;
+		sericlk_div = 1;
+	} else if (lvds_phy_clk >= 320000) {
+		reg32 = 0x02;
+		sericlk_div = 2;
+	} else if (lvds_phy_clk >= 160000) {
+		reg32 = 0x12;
+		sericlk_div = 4;
+	} else if (lvds_phy_clk >= 80000) {
+		reg32 = 0x22;
+		sericlk_div = 8;
+	} else {
+		reg32 = 0x32;
+		sericlk_div = 16;
+	}
+
+	ret = regmap_write(ctx->regmap, 0x8232, reg32);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to set LVDS TX PLL serial clock divider: %d\n",
+			ret);
+		return ret;
+	}
+
+	/* DOU_PORT: temp = 2 */
+	if (pclk_khz > 182000) {
+		reg33 = 0x04;
+	} else {
+		pixclk_div = sericlk_div / 2;
+
+		if (pixclk_div <= 1)
+			reg33 = 0x00;
+		else if (pixclk_div <= 2)
+			reg33 = 0x01;
+		else if (pixclk_div <= 4)
+			reg33 = 0x02;
+		else
+			reg33 = 0x03;
+	}
+
+	ret = regmap_write(ctx->regmap, 0x8233, reg33);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to set LVDS TX PLL pixel clock divider: %d\n",
+			ret);
+		return ret;
+	}
+
+	/* DOU_PORT: temp = 2 */
+	div_set = (7 * sericlk_div * prediv) / 2;
+
+	ret = regmap_write(ctx->regmap, 0x8234, 0x01);
+	if (ret) {
+		dev_err(ctx->dev, "failed to set LVDS TX PLL div: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_write(ctx->regmap, 0x8235, div_set & 0xff);
+	if (ret) {
+		dev_err(ctx->dev, "failed to set LVDS TX PLL div: %d\n", ret);
+		return ret;
+	}
+
+	dev_info(ctx->dev,
+		 "LVDS TX PLL: pclk=%ukHz phy=%ukHz prediv=%u serdiv=%u divset=%u\n",
+		 pclk_khz, lvds_phy_clk, prediv, sericlk_div, div_set);
+
+	ret = regmap_multi_reg_write(ctx->regmap, cali_reset_seq,
+				     ARRAY_SIZE(cali_reset_seq));
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to assert LVDS TX PLL calibration reset: %d\n",
+			ret);
+		return ret;
+	}
+
+	msleep(1);
+
+	ret = regmap_write(ctx->regmap, 0x810c, 0xff);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to release LVDS TX PLL calibration reset: %d\n",
+			ret);
+		return ret;
+	}
+
+	for (attempt = 0; attempt < LT9211D_LVDS_TX_PLL_CALI_MAX_ATTEMPTS;
+	     attempt++) {
+		attempts = attempt + 1;
+
+		ret = regmap_multi_reg_write(ctx->regmap, cali_trigger_seq,
+					     ARRAY_SIZE(cali_trigger_seq));
+		if (ret) {
+			dev_err(ctx->dev,
+				"failed to trigger LVDS TX PLL calibration: %d\n",
+				ret);
+			return ret;
+		}
+
+		msleep(20);
+
+		ret = regmap_read(ctx->regmap, 0x8739, &status);
+		if (ret)
+			return ret;
+
+		if (status & BIT(0))
+			break;
+	}
+
+	ret = regmap_read(ctx->regmap, 0x8739, &status);
+	if (ret)
+		return ret;
+
+	if (!(status & BIT(2))) {
+		dev_err(ctx->dev,
+			"LVDS TX PLL failed to lock: status=0x%02x\n",
+			status);
+		return -ETIMEDOUT;
+	}
+
+	dev_info(ctx->dev, "LVDS TX PLL locked: status=0x%02x attempts=%u\n",
+		 status, attempts);
 
 	return 0;
 }
@@ -977,9 +1236,34 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 	lt9211d_dump_mipi_rx(ctx);
 
 	ret = lt9211d_mipi_rx_video_check(ctx);
-	if (ret)
-		dev_warn(ctx->dev,
-			 "failed to check MIPI RX video status: %d\n", ret);
+	if (ret) {
+		int err;
+
+		dev_err(ctx->dev,
+			"failed to check MIPI RX video status: %d\n", ret);
+
+		err = regulator_disable(ctx->vccio);
+		if (err)
+			dev_err(ctx->dev,
+				"failed to disable vccio after MIPI RX video check error: %d\n",
+				err);
+		return;
+	}
+
+	ret = lt9211d_lvds_tx_pll_configure(ctx);
+	if (ret) {
+		int err;
+
+		dev_err(ctx->dev,
+			"failed to configure LVDS TX PLL: %d\n", ret);
+
+		err = regulator_disable(ctx->vccio);
+		if (err)
+			dev_err(ctx->dev,
+				"failed to disable vccio after LVDS TX PLL error: %d\n",
+				err);
+		return;
+	}
 
 	dev_info(ctx->dev, "LT9211D bridge enabled\n");
 }
