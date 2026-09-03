@@ -51,6 +51,12 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(0x8201, 0x8209),
 	regmap_reg_range(0x8213, 0x8213),
 	regmap_reg_range(0x8218, 0x8218),
+	/* DeSSC PLL reset */
+	regmap_reg_range(0x8103, 0x8103),
+	/* DeSSC PLL init / divider select */
+	regmap_reg_range(0x8226, 0x8227),
+	regmap_reg_range(0x822c, 0x822c),
+	regmap_reg_range(0x822f, 0x822f),
 	/* Active RX source select */
 	regmap_reg_range(0x8530, 0x8530),
 	/* MIPI RX lane mapping */
@@ -62,6 +68,11 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(0xd000, 0xd005),
 	regmap_reg_range(0xd00a, 0xd00b),
 	regmap_reg_range(0xd021, 0xd021),
+	/* DeSSC PLL SDM programming */
+	regmap_reg_range(0xd008, 0xd008),
+	regmap_reg_range(0xd026, 0xd029),
+	regmap_reg_range(0xd02d, 0xd02d),
+	regmap_reg_range(0xd031, 0xd031),
 	/* Video Check reset/latch */
 	regmap_reg_range(0x810b, 0x810b),
 	/* MIPI RX video timing */
@@ -564,6 +575,130 @@ static int lt9211d_mipi_rx_timing_set(struct lt9211d *ctx,
 	return ret;
 }
 
+/* Vendor: DRV_DesscPll_SdmCal() */
+static int lt9211d_dessc_pll_sdm_cal(struct lt9211d *ctx, unsigned int pclk_khz,
+				     unsigned int div)
+{
+	unsigned int tmp = (pclk_khz * div) / 25;
+	unsigned int m = tmp / 1000;
+	unsigned int k = tmp % 1000;
+	unsigned int up_limit = m + 1;
+	unsigned int down_limit = m - 1;
+	struct reg_sequence seq[7];
+	int ret;
+
+	k <<= 14;
+
+	dev_info(ctx->dev,
+		 "MIPI RX DeSSC PLL: pclk=%ukHz div=%u M=%u K=0x%06x up=%u down=%u\n",
+		 pclk_khz, div, m, k, up_limit, down_limit);
+
+	seq[0] = (struct reg_sequence){ 0xd008, 0x00 };
+	seq[1] = (struct reg_sequence){ 0xd026, 0x80 | (m & 0xff) };
+	seq[2] = (struct reg_sequence){ 0xd02d, up_limit & 0xff };
+	seq[3] = (struct reg_sequence){ 0xd031, down_limit & 0xff };
+	seq[4] = (struct reg_sequence){ 0xd027, (k >> 16) & 0xff };
+	seq[5] = (struct reg_sequence){ 0xd028, (k >> 8) & 0xff };
+	seq[6] = (struct reg_sequence){ 0xd029, k & 0xff };
+
+	ret = regmap_multi_reg_write(ctx->regmap, seq, ARRAY_SIZE(seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to program MIPI RX DeSSC SDM: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0xd026, BIT(7), 0);
+	if (ret)
+		dev_err(ctx->dev,
+			"failed to clear MIPI RX DeSSC SDM load bit: %d\n",
+			ret);
+
+	return ret;
+}
+
+/* Vendor: Drv_MipiRx_DesscPll_Set() */
+static int lt9211d_mipi_rx_dessc_pll_set(struct lt9211d *ctx,
+					 const struct drm_display_mode *mode)
+{
+	static const struct reg_sequence init_seq[] = {
+		{ 0x8226, 0x20 },
+		{ 0x8227, 0x40 },
+	};
+	static const struct reg_sequence reset_assert_seq[] = {
+		{ 0x8103, 0xfe },
+	};
+	unsigned int pclk_khz = mode->clock;
+	unsigned int div;
+	u8 reg_2f;
+	int ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, init_seq,
+				     ARRAY_SIZE(init_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to init MIPI RX DeSSC PLL: %d\n",
+			ret);
+		return ret;
+	}
+
+	if (pclk_khz >= 352000) {
+		reg_2f = 0x04;
+		div = 2;
+	} else if (pclk_khz >= 176000) {
+		reg_2f = 0x04;
+		div = 2;
+	} else if (pclk_khz >= 88000) {
+		reg_2f = 0x05;
+		div = 4;
+	} else if (pclk_khz >= 44000) {
+		reg_2f = 0x06;
+		div = 8;
+	} else if (pclk_khz >= 22000) {
+		reg_2f = 0x07;
+		div = 16;
+	} else {
+		reg_2f = 0x07;
+		div = 16;
+
+		ret = regmap_write(ctx->regmap, 0x822c, 0x01);
+		if (ret) {
+			dev_err(ctx->dev,
+				"failed to set MIPI RX DeSSC PLL low-clock bit: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	ret = regmap_write(ctx->regmap, 0x822f, reg_2f);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to select MIPI RX DeSSC PLL divider: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = lt9211d_dessc_pll_sdm_cal(ctx, pclk_khz, div);
+	if (ret)
+		return ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, reset_assert_seq,
+				     ARRAY_SIZE(reset_assert_seq));
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to assert MIPI RX DeSSC reset: %d\n", ret);
+		return ret;
+	}
+
+	msleep(1);
+
+	ret = regmap_write(ctx->regmap, 0x8103, 0xff);
+	if (ret)
+		dev_err(ctx->dev,
+			"failed to release MIPI RX DeSSC reset: %d\n", ret);
+
+	return ret;
+}
+
 static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -657,6 +792,11 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 	if (ret)
 		dev_warn(ctx->dev,
 			 "failed to configure MIPI RX timing: %d\n", ret);
+
+	ret = lt9211d_mipi_rx_dessc_pll_set(ctx, mode);
+	if (ret)
+		dev_warn(ctx->dev,
+			 "failed to configure MIPI RX DeSSC PLL: %d\n", ret);
 
 	lt9211d_dump_mipi_rx(ctx);
 
