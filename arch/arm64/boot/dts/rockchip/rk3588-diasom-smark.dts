@@ -299,7 +299,7 @@
 		compatible = "pwm-backlight";
 		pinctrl-names = "default";
 		pinctrl-0 = <&backlight_pins>;
-		pwms = <&pwm13 0 1000 0>;
+		pwms = <&pwm6 0 1000 0>;
 		brightness-levels = <0 255>;
 		num-interpolated-steps = <256>;
 		default-brightness-level = <100>;
