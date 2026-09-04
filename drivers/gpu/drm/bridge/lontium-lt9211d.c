@@ -74,6 +74,14 @@ static const struct regmap_range lt9211d_rw_ranges[] = {
 	regmap_reg_range(0x856f, 0x856f),
 	regmap_reg_range(0x870f, 0x870f),
 	regmap_reg_range(0x8739, 0x8739),
+	/* LVDS TX PHY power-on */
+	regmap_reg_range(0x8238, 0x823c),
+	regmap_reg_range(0x8246, 0x8251),
+	/* LVDS TX lane mapping (DOU_PORT, FOUR_LANE) */
+	regmap_reg_range(0x854a, 0x8556),
+	/* LVDS TX video format */
+	regmap_reg_range(0x8568, 0x8568),
+	regmap_reg_range(0x856e, 0x856e),
 	/* MIPI RX PHY lane count / power-on / input select */
 	regmap_reg_range(0xd000, 0xd005),
 	regmap_reg_range(0xd00a, 0xd00b),
@@ -1109,6 +1117,146 @@ static int lt9211d_lvds_tx_pll_configure(struct lt9211d *ctx)
 	return 0;
 }
 
+/* Vendor: Drv_LvdsTxPhy_Poweron(), DOU_PORT */
+static const struct reg_sequence lt9211d_lvds_tx_phy_on_seq[] = {
+	{ 0x8236, 0x03 },
+	{ 0x8237, 0x44 },
+
+	{ 0x8238, 0x14 },
+	{ 0x8239, 0x31 },
+	{ 0x823a, 0xc8 },
+	{ 0x823b, 0x00 },
+	{ 0x823c, 0x0f },
+
+	{ 0x8246, 0x40 },
+	{ 0x8247, 0x40 },
+	{ 0x8248, 0x40 },
+	{ 0x8249, 0x40 },
+	{ 0x824a, 0x40 },
+	{ 0x824b, 0x40 },
+	{ 0x824c, 0x40 },
+	{ 0x824d, 0x40 },
+	{ 0x824e, 0x40 },
+	{ 0x824f, 0x40 },
+	{ 0x8250, 0x40 },
+	{ 0x8251, 0x40 },
+};
+
+/* Vendor: MLT TX reset/release after Drv_LvdsTxPhy_Poweron() */
+static const struct reg_sequence lt9211d_lvds_tx_mltx_release_seq[] = {
+	{ 0x8103, 0xbf },
+	{ 0x8103, 0xff },
+};
+
+/* Vendor: Drv_LvdsTxLaneNum_Set(FOUR_LANE), DOU_PORT */
+static const struct reg_sequence lt9211d_lvds_tx_lane_seq[] = {
+	{ 0x854a, 0x01 },
+	{ 0x854b, 0x00 },
+	{ 0x854c, 0x10 },
+	{ 0x854d, 0x20 },
+	{ 0x854e, 0x50 },
+	{ 0x854f, 0x30 },
+
+	{ 0x8550, 0x46 },
+	{ 0x8551, 0x10 },
+	{ 0x8552, 0x20 },
+	{ 0x8553, 0x50 },
+	{ 0x8554, 0x30 },
+	{ 0x8555, 0x00 },
+	{ 0x8556, 0x20 },
+};
+
+/*
+ * Vendor: Mod_LvdsTxDig_Set() — Drv_LvdsTxPhy_Poweron() + Drv_LvdsTxPort_Set()
+ * + Drv_LvdsTxVidFmt_Set() + Drv_LvdsTxLaneNum_Set() + Drv_LvdsTxSw_Rst(),
+ * BOE Varitronix COG-TA25F325P-L5: DOU_PORT, DE mode, VESA, RGB888, no SSC
+ */
+static int lt9211d_lvds_tx_enable(struct lt9211d *ctx)
+{
+	int ret;
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_lvds_tx_phy_on_seq,
+				     ARRAY_SIZE(lt9211d_lvds_tx_phy_on_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to power on LVDS TX phy: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap,
+				     lt9211d_lvds_tx_mltx_release_seq,
+				     ARRAY_SIZE(lt9211d_lvds_tx_mltx_release_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to release LVDS MLT TX: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0x856f, BIT(7) | BIT(4),
+				 BIT(7) | BIT(4));
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to enable LVDS TX dual-port output: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0x856e, BIT(3), BIT(3));
+	if (ret) {
+		dev_err(ctx->dev, "failed to set LVDS TX DE mode: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0x856f, BIT(6), 0);
+	if (ret) {
+		dev_err(ctx->dev, "failed to set LVDS TX VESA format: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_update_bits(ctx->regmap, 0x856f, BIT(2), BIT(2));
+	if (ret) {
+		dev_err(ctx->dev, "failed to set LVDS TX RGB888 depth: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_write(ctx->regmap, 0x8568, 0x00);
+	if (ret) {
+		dev_err(ctx->dev,
+			"failed to set LVDS TX video format: %d\n", ret);
+		return ret;
+	}
+
+	ret = regmap_multi_reg_write(ctx->regmap, lt9211d_lvds_tx_lane_seq,
+				     ARRAY_SIZE(lt9211d_lvds_tx_lane_seq));
+	if (ret) {
+		dev_err(ctx->dev, "failed to set LVDS TX lane mapping: %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = regmap_write(ctx->regmap, 0x8108, 0x6f);
+	if (ret) {
+		dev_err(ctx->dev, "failed to assert LVDS TX SW reset: %d\n",
+			ret);
+		return ret;
+	}
+
+	msleep(2);
+
+	ret = regmap_write(ctx->regmap, 0x8108, 0x7f);
+	if (ret) {
+		dev_err(ctx->dev, "failed to release LVDS TX SW reset: %d\n",
+			ret);
+		return ret;
+	}
+
+	dev_info(ctx->dev,
+		 "LVDS TX configured: dual-port VESA RGB888 DE mode\n");
+
+	return 0;
+}
+
 static int lt9211d_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
@@ -1261,6 +1409,20 @@ static void lt9211d_atomic_enable(struct drm_bridge *bridge,
 		if (err)
 			dev_err(ctx->dev,
 				"failed to disable vccio after LVDS TX PLL error: %d\n",
+				err);
+		return;
+	}
+
+	ret = lt9211d_lvds_tx_enable(ctx);
+	if (ret) {
+		int err;
+
+		dev_err(ctx->dev, "failed to enable LVDS TX: %d\n", ret);
+
+		err = regulator_disable(ctx->vccio);
+		if (err)
+			dev_err(ctx->dev,
+				"failed to disable vccio after LVDS TX error: %d\n",
 				err);
 		return;
 	}
