@@ -308,7 +308,7 @@
 	};
 
 	panel_lvds: panel-lvds {
-		compatible = "panel-lvds";
+		compatible = "boe,cog-ta25f325p-l5";
 
 		data-mapping = "vesa-24";
 
