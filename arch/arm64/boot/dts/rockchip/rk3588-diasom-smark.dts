@@ -1045,6 +1045,23 @@
 	};
 };
 
+&i2c4 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4m2_xfer>;
+
+	/* 24aa025e48 */
+	eeprom@50 {
+		compatible = "atmel,24c02";
+		reg = <0x50>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
 &i2c5 {
 	status = "okay";
 	clock-frequency = <100000>;
