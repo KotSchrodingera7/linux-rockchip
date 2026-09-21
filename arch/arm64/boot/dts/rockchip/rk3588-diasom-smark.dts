@@ -1043,6 +1043,21 @@
 			};
 		};
 	};
+
+	rtc@68 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&clk32k_in>;
+		compatible = "st,m41t62";
+		reg = <0x68>;
+
+		clock {
+			compatible = "fixed-clock";
+			clock-accuracy = <2000>;
+			clock-frequency = <32768>;
+			clock-output-names = "xin32k";
+			#clock-cells = <0>;
+		};
+	};
 };
 
 &i2c4 {
@@ -1052,13 +1067,17 @@
 	pinctrl-0 = <&i2c4m2_xfer>;
 
 	/* 24aa025e48 */
-	eeprom@50 {
+	eeprom@53 {
 		compatible = "atmel,24c02";
-		reg = <0x50>;
+		reg = <0x53>;
 		pagesize = <16>;
 		vcc-supply = <&vcc_1v8_sys>;
 		#address-cells = <1>;
 		#size-cells = <1>;
+
+		eui48_4: offset@fa {
+			reg = <0xfa 0x06>;
+		};
 	};
 };
 
@@ -1203,6 +1222,19 @@
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7m0_xfer>;
+
+	eeprom@53 {
+		compatible = "atmel,24c02";
+		reg = <0x53>;
+		pagesize = <16>;
+		vcc-supply = <&vcc_1v8_sys>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		eui48_7: offset@fa {
+			reg = <0xfa 0x06>;
+		};
+	};
 };
 
 &i2s2_2ch {
