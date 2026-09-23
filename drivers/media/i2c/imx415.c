@@ -776,8 +776,17 @@ static __maybe_unused const struct regval imx415_hdr2_12bit_1932x1096_891M_regs[
  * All-pixel
  */
 static __maybe_unused const struct regval imx415_linear_12bit_3864x2192_891M_regs_2lane[] = {
-	{0x3008, 0x5D},
-	{0x300A, 0x42},
+	/*
+	 * INCK clock-parameter registers (0x3008/0x300A/0x3116/0x3118/
+	 * 0x311A/0x311E/0x4004-0x4005) below are tuned for INCK=37.125MHz,
+	 * lane_rate=891Mbps, matching the Sony IMX415 INCK table (same
+	 * values already used by the 4-lane 37.125MHz arrays in this file,
+	 * e.g. imx415_global_10bit_3864x2192_regs / _12bit_ variants), not
+	 * the original 27MHz values this table shipped with. On this board
+	 * the 2-lane camera modules' XVCLK is 37.125MHz, not 27MHz.
+	 */
+	{0x3008, 0x7F},
+	{0x300A, 0x5B},
 	{0x3028, 0x98},
 	{0x3029, 0x08},
 	{0x3033, 0x05},
@@ -785,10 +794,10 @@ static __maybe_unused const struct regval imx415_linear_12bit_3864x2192_891M_reg
 	{0x3051, 0x07},
 	{0x3090, 0x14},
 	{0x30C1, 0x00},
-	{0x3116, 0x23},
-	{0x3118, 0xC6},
-	{0x311A, 0xE7},
-	{0x311E, 0x23},
+	{0x3116, 0x24},
+	{0x3118, 0xC0},
+	{0x311A, 0xE0},
+	{0x311E, 0x24},
 	{0x32D4, 0x21},
 	{0x32EC, 0xA1},
 	{0x344C, 0x2B},
@@ -889,8 +898,8 @@ static __maybe_unused const struct regval imx415_linear_12bit_3864x2192_891M_reg
 	{0x3BC8, 0xBD},
 	{0x3BCA, 0xBD},
 	{0x4001, 0x01},
-	{0x4004, 0xC0},
-	{0x4005, 0x06},
+	{0x4004, 0x48},
+	{0x4005, 0x09},
 	{0x400C, 0x00},
 	{0x4018, 0x7F},
 	{0x401A, 0x37},
@@ -1322,7 +1331,7 @@ static const struct imx415_mode supported_modes_2lane[] = {
 		.mipi_freq_idx = 1,
 		.bpp = 12,
 		.vc[PAD0] = 0,
-		.xvclk = IMX415_XVCLK_FREQ_27M,
+		.xvclk = IMX415_XVCLK_FREQ_37M,
 	},
 	{
 		/* 1H period = (1100 clock) = (1100 * 1 / 74.25MHz) */
