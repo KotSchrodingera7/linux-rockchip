@@ -94,6 +94,30 @@
 		vin-supply = <&vcc12v_dcin>;
 	};
 
+	vcc_cam1: vcc-cam1-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam1_pwr>;
+		compatible = "regulator-fixed";
+		regulator-boot-on;
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam1";
+		startup-delay-us = <250000>;
+	};
+
+	vcc_cam2: vcc-cam2-regulator {
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam2_pwr>;
+		compatible = "regulator-fixed";
+		regulator-boot-on;
+		regulator-always-on;
+		enable-active-high;
+		gpio = <&gpio2 RK_PC5 GPIO_ACTIVE_HIGH>;
+		regulator-name = "vcc_cam2";
+		startup-delay-us = <250000>;
+	};
+
 	vcc_cam3: vcc-cam3-regulator {
 		pinctrl-names = "default";
 		pinctrl-0 = <&cam3_pwr>;
@@ -442,6 +466,70 @@
 	operating-points-v2 = <&cluster0_opp_table_m>;
 };
 
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipidcphy0_in_ucam2: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx415_i2c9_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&csi2_dcphy1 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipidcphy1_in_ucam3: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx415_i2c10_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy1_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi1_csi2_input>;
+			};
+		};
+	};
+};
+
 &csi2_dphy0 {
 	status = "disabled";
 
@@ -507,12 +595,13 @@
 	};
 };
 
+/* Required by the csi2-dphy driver for csi2_dcphy0/1 as well */
 &csi2_dphy0_hw {
-	status = "disabled";
+	status = "okay";
 };
 
 &csi2_dphy1_hw {
-	status = "disabled";
+	status = "okay";
 };
 
 &display_subsystem {
@@ -1149,12 +1238,60 @@
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			imx415_i2c9: camera-2@1a {
+				compatible = "sony,imx415";
+				reg = <0x1a>;
+				clocks = <&clk37m125 0>;
+				clock-names = "xvclk";
+				reset-gpios = <&gpio1 RK_PC2 GPIO_ACTIVE_LOW>;
+				avdd-supply = <&vcc_cam1>;
+				dvdd-supply = <&vcc_cam1>;
+				dovdd-supply = <&vcc_cam1>;
+				rockchip,camera-module-index = <2>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "IMX415";
+				rockchip,camera-module-lens-name = "NC";
+				status = "okay";
+
+				port {
+					imx415_i2c9_out: endpoint {
+						data-lanes = <1 2 3 4>;
+						remote-endpoint = <&mipidcphy0_in_ucam2>;
+						link-frequencies = /bits/ 64 <594000000>;
+					};
+				};
+			};
 		};
 
 		i2c10: i2c@1 {
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			imx415_i2c10: camera-3@1a {
+				compatible = "sony,imx415";
+				reg = <0x1a>;
+				clocks = <&clk37m125 0>;
+				clock-names = "xvclk";
+				reset-gpios = <&gpio2 RK_PC0 GPIO_ACTIVE_LOW>;
+				avdd-supply = <&vcc_cam2>;
+				dvdd-supply = <&vcc_cam2>;
+				dovdd-supply = <&vcc_cam2>;
+				rockchip,camera-module-index = <3>;
+				rockchip,camera-module-facing = "back";
+				rockchip,camera-module-name = "IMX415";
+				rockchip,camera-module-lens-name = "NC";
+				status = "okay";
+
+				port {
+					imx415_i2c10_out: endpoint {
+						data-lanes = <1 2>;
+						remote-endpoint = <&mipidcphy1_in_ucam3>;
+						link-frequencies = /bits/ 64 <445500000>;
+					};
+				};
+			};
 		};
 
 		i2c11: i2c@2 {
@@ -1170,7 +1307,7 @@
 				avdd-supply = <&vcc_cam3>;
 				dvdd-supply = <&vcc_cam3>;
 				ovdd-supply = <&vcc_cam3>;
-				rockchip,camera-module-index = <1>;
+				rockchip,camera-module-index = <0>;
 				rockchip,camera-module-facing = "back";
 				rockchip,camera-module-name = "IMX415";
 				rockchip,camera-module-lens-name = "NC";
@@ -1253,8 +1390,74 @@
 	status = "okay";
 };
 
-&mipi2_csi2 {
+&isp1_mmu {
 	status = "okay";
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi0_in0>;
+			};
+		};
+	};
+};
+
+&mipi1_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy1_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi1_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi1_in1>;
+			};
+		};
+	};
+};
+
+&mipi2_csi2 {
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -1285,7 +1488,7 @@
 };
 
 &mipi4_csi2 {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -1434,8 +1637,28 @@
     status = "okay";
 };
 
-&rkcif_mipi_lvds2 {
+&rkcif_mipi_lvds {
 	status = "okay";
+
+	port {
+		cif_mipi0_in0: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1 {
+	status = "okay";
+
+	port {
+		cif_mipi1_in1: endpoint {
+			remote-endpoint = <&mipi1_csi2_output>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds2 {
+	status = "disabled";
 
 	port {
 		cif_mipi2_in0: endpoint {
@@ -1445,7 +1668,7 @@
 };
 
 &rkcif_mipi_lvds4 {
-	status = "okay";
+	status = "disabled";
 
 	port {
 		cif_mipi2_in4: endpoint {
@@ -1455,8 +1678,26 @@
 };
 
 
-&rkcif_mipi_lvds2_sditf {
+&rkcif_mipi_lvds_sditf {
 	status = "okay";
+	port {
+		mipi_lvds_sditf: endpoint {
+			remote-endpoint = <&isp1_vir0>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds1_sditf {
+	status = "okay";
+	port {
+		mipi_lvds1_sditf: endpoint {
+			remote-endpoint = <&isp1_vir1>;
+		};
+	};
+};
+
+&rkcif_mipi_lvds2_sditf {
+	status = "disabled";
 	port {
 		mipi_lvds2_sditf: endpoint {
 			remote-endpoint = <&isp0_vir0>;
@@ -1465,7 +1706,7 @@
 };
 
 &rkcif_mipi_lvds4_sditf_vir1 {
-	status = "okay";
+	status = "disabled";
 	port {
 		mipi_lvds4_sditf_vir1: endpoint {
 			remote-endpoint = <&isp0_vir1>;
@@ -1499,6 +1740,36 @@
 		isp0_vir1: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&mipi_lvds4_sditf_vir1>;
+		};
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+};
+
+&rkisp1_vir0 {
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir0: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds_sditf>;
+		};
+	};
+};
+
+&rkisp1_vir1 {
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp1_vir1: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&mipi_lvds1_sditf>;
 		};
 	};
 };
@@ -1802,6 +2073,16 @@
 &pinctrl {
 
 	csi {
+		cam1_pwr: cam1-pwr {
+			rockchip,pins =
+				<1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>;	/* CAM1_PWREN */
+		};
+
+		cam2_pwr: cam2-pwr {
+			rockchip,pins =
+				<2 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* CAM2_PWREN */
+		};
+
 		cam3_pwr: cam3-pwr {
 			rockchip,pins =
 				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;	/* CAM3_PWREN */
