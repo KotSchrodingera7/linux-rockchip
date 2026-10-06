@@ -687,7 +687,7 @@
 };
 
 &hdmi1 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmim0_tx1_hpd>;
     cec-enable = "true";
