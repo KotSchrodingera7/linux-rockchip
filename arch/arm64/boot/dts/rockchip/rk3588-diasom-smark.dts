@@ -1550,11 +1550,11 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		ethernet0: ethernet@0,0 {
+		ethernet1: ethernet@0,0 {
 			/* RTL8125BI-CG DD12 */
 			compatible = "pci10ec,8125";
 			reg = <0x210000 0 0 0 0>;
-			nvmem-cells = <&mac0>;
+			nvmem-cells = <&mac1>;
 			nvmem-cell-names = "mac-address";
 		};
 	};
@@ -1574,11 +1574,11 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		ethernet1: ethernet@0,0 {
+		ethernet0: ethernet@0,0 {
 			/* RTL8125BI-CG DD8 */
 			compatible = "pci10ec,8125";
 			reg = <0x410000 0 0 0 0>;
-			nvmem-cells = <&mac1>;
+			nvmem-cells = <&mac0>;
 			nvmem-cell-names = "mac-address";
 		};
 	};
